@@ -26,7 +26,7 @@ You can simply paste the `MacroQA` folder into C:\Program Files\Fiji\Fiji.app\pl
 
 
 # TODO
-- traduçãopara inglês
+- tradução para inglês
 - escrever o passo a passo
 - corrigir bugs
 
