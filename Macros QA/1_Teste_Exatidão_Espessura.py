@@ -46,8 +46,8 @@ IJ.setTool("rectangle")
 # Caixa para ROI 1
 WaitForUserDialog("Selecionar ROI 1 (Retangulo)").show()
 roi1 = imp.getRoi()
-if roi1 is None:
-    IJ.error("ROI 1 não selecionada.")
+if roi1 is None or roi1.getType() != Roi.RECTANGLE:
+    IJ.error("ROI 1 com formato invalido ou nao selecionada.")
     raise SystemExit
 imp.setRoi(roi1)
 IJ.run("Measure")
@@ -55,10 +55,10 @@ stats1 = imp.getStatistics(Measurements.MEAN)
 mean1 = stats1.mean
 
 # Caixa para ROI 2
-WaitForUserDialog("Selecionar ROI 2 (Retangulo").show()
+WaitForUserDialog("Selecionar ROI 2 (Retangulo)").show()
 roi2 = imp.getRoi()
-if roi2 is None:
-    IJ.error("ROI 2 não selecionada.")
+if roi2 is None or roi2.getType() != Roi.RECTANGLE:
+    IJ.error("ROI 2 com formato invalido ou nao selecionada.")
     raise SystemExit
 imp.setRoi(roi2)
 IJ.run("Measure")
@@ -80,7 +80,7 @@ IJ.setTool("line")
 WaitForUserDialog("Selecionar ROI 3 (Linha)").show()
 roi3 = imp.getRoi()
 if roi3 is None or roi3.getType() != Roi.LINE:
-    IJ.error("ROI 3 nao e uma linha.")
+    IJ.error("ROI 3 com formato invalido ou nao selecionada.")
     raise SystemExit
 imp.setRoi(roi3)
 IJ.run("Measure")
@@ -90,7 +90,7 @@ length3 = roi3.getLength()
 WaitForUserDialog("Selecionar ROI 4 (Linha)").show()
 roi4 = imp.getRoi()
 if roi4 is None or roi4.getType() != Roi.LINE:
-    IJ.error("ROI 4 nao e uma linha.")
+    IJ.error("ROI 4 com formato invalido ou nao selecionada.")
     raise SystemExit
 imp.setRoi(roi4)
 IJ.run("Measure")
@@ -109,6 +109,7 @@ rt.addValue("Resultado Final", resultado)
 rt.show("Results")
     
 WaitForUserDialog("Teste de Exatidao de Espessura finalizado, colete os resultados.").show()
+imp.close()
 
 IJ.run("Clear Results")
 IJ.log("---- Fim do teste de Exatidao de Espessura ----")
