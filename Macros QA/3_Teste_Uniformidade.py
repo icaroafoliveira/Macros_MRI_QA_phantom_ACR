@@ -1,9 +1,10 @@
-#@ ImagePlus imp
-
-from ij import IJ
+from java.awt import Window, Font
+from ij.io import OpenDialog
+from ij import IJ, WindowManager
 from ij.gui import OvalRoi, WaitForUserDialog, GenericDialog
 from ij.measure import Measurements
 from ij.plugin.frame import RoiManager
+from javax.swing import SwingUtilities
 import math
 
 # ===== Funções =====
@@ -17,7 +18,52 @@ def medir_roi_mean(imp, roi=None):
     stats = imp.getStatistics(Measurements.MEAN)
     return stats.mean
 
+def fechar_wl():
+    # Títulos mais comuns dessa janela
+    candidatos = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
+    for t in candidatos:
+        w = WindowManager.getWindow(t) or WindowManager.getFrame(t)
+        if w is not None:
+            # fecha sem perguntar
+            try:
+                w.dispose()   # fecha a janela
+            except:
+                try:
+                    w.setVisible(False)
+                except:
+                    pass
+            return True
+    # fallback: varre janelas não-imagem e fecha se bater por nome
+    wins = WindowManager.getNonImageWindows() or []
+    for w in wins:
+        try:
+            title = w.getTitle()
+        except:
+            title = ""
+        if title and any(s in title.lower() for s in ["contrast", "brightness", "window/level", "w&l", "b&c"]):
+            w.dispose()
+            return True
+    return False
+
+def open_dicom_file(prompt):
+    od = OpenDialog(prompt, None)
+    path = od.getPath()
+    if path is None:
+        return None
+    imp = IJ.openImage(path)
+    if imp is None:
+        IJ.error("Falha ao abrir a imagem.")
+        return None
+    imp.show()
+    return imp
+
 IJ.log("---- Inicio do teste de Uniformidade ----")
+WaitForUserDialog("Abra a imagem T1 e realize o teste de uniformidade").show()
+imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
+
+if imp is None:
+    IJ.error("Nenhuma imagem aberta.")
+    raise SystemExit
 
 IJ.run(imp, "Original Scale", "")
 IJ.resetMinAndMax(imp)
@@ -74,6 +120,10 @@ center_y = imp.getHeight() / 2.0
 roi_large = OvalRoi(center_x - radius_large, center_y - radius_large, radius_large*2, radius_large*2)
 imp.setRoi(roi_large)
 
+dlg = WaitForUserDialog("Posicionar ROI grande (200 cm^2)",
+    "Mova a ROI grande para o local desejado.\nClique OK quando terminar.")
+dlg.show()
+
 # Adicionar ROI grande no ROI Manager
 rm = RoiManager.getInstance()
 if rm is None:
@@ -81,9 +131,14 @@ if rm is None:
 rm.reset()  # limpa ROIs antigas
 rm.addRoi(roi_large)
 
-dlg = WaitForUserDialog("Posicionar ROI grande (200 cm^2)",
-    "Mova a ROI grande para o local desejado.\nClique OK quando terminar.")
-dlg.show()
+gd = GenericDialog("Instrucoes")
+gd.addMessage("AVISO!", Font("SansSerif", Font.BOLD, 20))
+gd.addMessage("Selecione a opcao 'Show All' na janela do ROI Manager antes de prosseguir com o teste.", Font("SansSerif", Font.ITALIC, 12))
+gd.addMessage("Clique em 'OK' para continuar.", Font("SansSerif", Font.ITALIC, 12))
+gd.showDialog()
+if gd.wasCanceled():
+    IJ.log("Cancelado.")
+    raise SystemExit
 
 mean_ref = medir_roi_mean(imp)
 IJ.log("Media inicial (ROI grande): {:.3f}".format(mean_ref))
@@ -95,10 +150,11 @@ min_val = stats_full.min
 IJ.setMinAndMax(imp, min_val, min_val + 1)  # força branco total
 
 # Abre a janela de Brightness/Contrast para ajuste manual
+IJ.run("Brightness/Contrast...")
 IJ.run("Window/Level...")
 
 dlg = WaitForUserDialog("Ajuste manual - baixo sinal",
-    "Ajuste o window/level para aparecer aproximadamente 1 cm^2 de pixels escuros dentro da ROI grande.\n"
+    "Aumente o level para aparecer aproximadamente 1 cm^2 de pixels escuros dentro da ROI grande.\n"
     "Concentre-se na maior regiao escura.\n\nClique OK quando terminar.")
 dlg.show()
 
@@ -125,8 +181,7 @@ if not any(r == roi_large for r in rm.getRoisAsArray()):
 
 # ===== Passo 5: Ajuste manual para alto sinal =====
 dlg = WaitForUserDialog("Ajuste manual - alto sinal",
-    "AUMENTE o nivel ate restar apenas aproximadamente 1 cm^2 de pixels brancos dentro da ROI grande.\n"
-    "A ROI grande esta salva no ROI manager, selecione-a para usar de referencia"
+    "Aumente o level ate restar apenas aproximadamente 1 cm^2 de pixels brancos dentro da ROI grande.\n"
     "Concentre-se na maior regiao branca.\n\nClique OK quando terminar.")
 dlg.show()
 IJ.run("Clear Results")
@@ -134,11 +189,11 @@ IJ.log("")
 # ===== Passo 6: ROI pequena (~1 cm²) para alto sinal =====
 roi_small_high = OvalRoi(center_x - radius_small, center_y - radius_small, radius_small*2, radius_small*2)
 imp.setRoi(roi_small_high)
-rm.addRoi(roi_small_high)
 
 dlg = WaitForUserDialog("Posicionar ROI pequena - alto sinal",
     "Mova a ROI pequena para a regiao de maior sinal (dentro da ROI grande).\nClique OK quando terminar.")
 dlg.show()
+rm.addRoi(roi_small_high)
 high_signal = medir_roi_mean(imp)
 IJ.log("Media alto sinal: {:.3f}".format(high_signal))
 
@@ -150,9 +205,19 @@ else:
     IJ.log("PIU calculado: {:.2f}".format(piu))
     IJ.log("{:.2f}".format(piu))
 
-dlg=WaitForUserDialog("Teste de Uniformidade finalizado, colete os resultados.\n"
-	"Recomenda-se fechar a janela de W&L.")
+gd = GenericDialog("Instrucoes")
+gd.addMessage("AVISO!", Font("SansSerif", Font.BOLD, 20))
+gd.addMessage("Feche a janela de ROI Manager logo apos finalizar o teste.", Font("SansSerif", Font.ITALIC, 12))
+gd.addMessage("Clique em 'OK' para continuar.", Font("SansSerif", Font.ITALIC, 12))
+gd.showDialog()
+if gd.wasCanceled():
+    IJ.log("Cancelado.")
+    raise SystemExit
+
+dlg=WaitForUserDialog("Teste de Uniformidade finalizado, colete os resultados.")
 dlg.show()
+fechar_wl()
+imp.close()
 
 IJ.run("Clear Results")
 IJ.log("---- Fim do teste de Uniformidade ----")

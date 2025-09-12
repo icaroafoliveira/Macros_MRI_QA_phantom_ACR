@@ -112,6 +112,7 @@ max_display = l + (w / 2)
 IJ.setMinAndMax(imp, min_display, max_display)
 
 # Abre a janela de W&L já configurada
+IJ.run("Brightness/Contrast...")
 IJ.run("Window/Level...")
 
 # ===== Passo 4: Ajuste manual =====

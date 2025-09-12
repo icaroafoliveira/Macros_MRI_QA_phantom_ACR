@@ -1,12 +1,63 @@
-#@ ImagePlus imp
-
-from ij import IJ
+from ij import IJ, WindowManager
 from ij.gui import OvalRoi, WaitForUserDialog, GenericDialog
 from ij.measure import Measurements
 from ij.plugin.frame import RoiManager
 import math
+from ij.io import OpenDialog
+from java.awt import Font
+
+def fechar_wl():
+    # Títulos mais comuns dessa janela
+    candidatos = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
+    for t in candidatos:
+        w = WindowManager.getWindow(t) or WindowManager.getFrame(t)
+        if w is not None:
+            # fecha sem perguntar
+            try:
+                w.dispose()   # fecha a janela
+            except:
+                try:
+                    w.setVisible(False)
+                except:
+                    pass
+            return True
+    # fallback: varre janelas não-imagem e fecha se bater por nome
+    wins = WindowManager.getNonImageWindows() or []
+    for w in wins:
+        try:
+            title = w.getTitle()
+        except:
+            title = ""
+        if title and any(s in title.lower() for s in ["contrast", "brightness", "window/level", "w&l", "b&c"]):
+            w.dispose()
+            return True
+    return False
+
+def open_dicom_file(prompt):
+    od = OpenDialog(prompt, None)
+    path = od.getPath()
+    if path is None:
+        return None
+    imp = IJ.openImage(path)
+    if imp is None:
+        IJ.error("Falha ao abrir a imagem.")
+        return None
+    imp.show()
+    return imp
 
 IJ.log("---- Inicio do teste de imagem residual ----")
+WaitForUserDialog("Abra a imagem T1 e realize o teste de imagem residual").show()
+imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
+
+if imp is None:
+    IJ.error("Nenhuma imagem aberta.")
+    raise SystemExit
+
+IJ.run(imp, "Original Scale", "")
+IJ.resetMinAndMax(imp)
+
+IJ.run("In [+]", "")
+IJ.run("In [+]", "")
 
 # ===== Funções =====
 def area_to_radius_pixels(area_cm2, px_w_cm, px_h_cm):
@@ -92,6 +143,7 @@ max_display = l + (w / 2)  # 2000
 IJ.setMinAndMax(imp, min_display, max_display)
 
 # Abre a janela de W&L já configurada
+IJ.run("Brightness/Contrast...")
 IJ.run("Window/Level...")
 
 dlg = WaitForUserDialog("Ajuste manual - janelamento",
@@ -174,10 +226,19 @@ else:
     GR = abs((((top - btm)-(left+right))*100) / (2.0*mean_ref))
     IJ.log("Ghosting Ratio calculado: {:.10f}%".format(GR))
     IJ.log("{:.10f}%".format(GR))
-    
 
-WaitForUserDialog("Teste de Imagem Residual finalizado, colete os resultados.\n"
-	"Recomenda-se fechar a janela de W&L.").show()
+gd = GenericDialog("Instrucoes")
+gd.addMessage("AVISO!", Font("SansSerif", Font.BOLD, 20))
+gd.addMessage("Feche a janela de ROI Manager logo apos finalizar o teste.", Font("SansSerif", Font.ITALIC, 12))
+gd.addMessage("Clique em 'OK' para continuar.", Font("SansSerif", Font.ITALIC, 12))
+gd.showDialog()
+if gd.wasCanceled():
+    IJ.log("Cancelado.")
+    raise SystemExit
+
+WaitForUserDialog("Teste de Imagem Residual finalizado, colete os resultados.\n").show()
+imp.close()
+fechar_wl()
 
 IJ.run("Clear Results")
 IJ.log("---- Fim do teste de imagem residual ----")
