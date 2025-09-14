@@ -1,13 +1,18 @@
-# @MenuPath label="MacroQA>Geometric Accuracy Test"
+# Macro to perform the Geometric Accuracy test of the ACR MRI phantom.
+# The script assumes that the user will select the Localizer image first (single-slice)
+# and then the ACR T1-weighted image (multi-slice).
+# The user is prompted to draw straight line ROIs on specific slices and orientations.
+# The lengths of the lines are measured and printed in the log.
+
 
 from ij import IJ
 from ij.io import OpenDialog
 from ij.measure import ResultsTable
-from ij.gui import WaitForUserDialog
+from ij.gui import WaitForUserDialog, Roi
 from ij import ImagePlus
 import sys
 
-# === Função para abrir imagem DICOM ===
+# === Function to open DICOM files ===
 def open_dicom_file(prompt):
     od = OpenDialog(prompt, None)
     path = od.getPath()
@@ -15,20 +20,20 @@ def open_dicom_file(prompt):
         return None
     imp = IJ.openImage(path)
     if imp is None:
-        IJ.error("Falha ao abrir a imagem.")
+        IJ.error("Failed to open the image.")
         return None
     imp.show()
     return imp
 
-# === Função para obter medida de linha ===
+# === Function to perform line measurements ===
 def get_measurement(imp, instruction):
     # Espera o usuário desenhar a ROI
-    wait = WaitForUserDialog("Desenhe a linha", instruction)
+    wait = WaitForUserDialog("Draw a straigth line", instruction)
     wait.show()
 
     roi = imp.getRoi()
-    if roi is None or roi.getType() != roi.LINE:
-        IJ.error("ROI inválida", "Por favor, desenhe uma linha reta válida.")
+    if roi is None or roi.getType() != Roi.LINE:
+        IJ.error("Invalid ROI", "Please, redraw a valid straight line.")
         return None
 
     IJ.run("Set Measurements...", "length")
@@ -36,55 +41,84 @@ def get_measurement(imp, instruction):
 
     rt = ResultsTable.getResultsTable()
     length = rt.getValue("Length", rt.size() - 1)
-    IJ.log("Comprimento: {:.3f}".format(length))
+    IJ.log("Length: {:.3f}".format(length))
     return length
 
-IJ.log("---- Inicio do teste de Exatidao Geometrica ----")
-# === MEDIDA DO LOCALIZER ===
-IJ.log("=== Medida do LOCALIZER ===")
-WaitForUserDialog("Clique OK para selecionar a imagem do Localizer").show()
-localizer = open_dicom_file("Selecione a imagem DICOM do LOCALIZER")
+# === Function to print image type based on number of slices ===
+def printImageType(imp):
+    # Make sure that the image is the expected one
+    # Localizer is a single-slice image
+    # T1w has 11 slices
+    # T2w has 22 slices (2 echo times)
+     
+    slices = imp.getNSlices()     # z dimension
+
+    if slices < 11:
+        IJ.log("Image Type: Localizer.")
+        IJ.log("Repeat the measurement with ACR T1w image.")
+    elif slices > 11:
+        IJ.log("Image Type: ACR T2w image.")
+        IJ.log("Repeat the measurement with ACR T1w image.")
+    else:
+        IJ.log("Image Type: ACR T1w image.")
+
+IJ.log("---- Geometric accuracy Test ----")
+
+# === LOCALIZER measurements ===
+IJ.log("=== LOCALIZER measurements ===")
+WaitForUserDialog("Click OK to select the Localizer image.").show()
+localizer = open_dicom_file("Select LOCALIZER image (single-slice)")
 if localizer is None:
     sys.exit()
+
+# Print image type
+printImageType(localizer)
+
+# Zoom in a couple of times for better precision
 IJ.setTool("line")
 IJ.run("In [+]", "")
 IJ.run("In [+]", "")
-localizer_measurement = get_measurement(localizer, "Desenhe a linha vertical no LOCALIZER.")
+localizer_measurement = get_measurement(localizer, "LOCALIZER: Draw a vertical straight line.")
 localizer.close()
 
-# === MEDIDAS DO T1-PONDERADO ===
-IJ.log("=== Medida da imagem ponderada em T1 ===")
-WaitForUserDialog("Clique OK para selecionar a imagem ponderada em T1").show()
-t1w = open_dicom_file("Selecione a imagem DICOM ponderada em T1 (multi-slice)")
+# === T1w measurements ===
+IJ.log("=== ACR T1w measurements ===")
+WaitForUserDialog("Click OK to select the ACR T1w image.").show()
+t1w = open_dicom_file("Select ACR T1 weighted DICOM image (multi-slice)")
 if t1w is None:
     sys.exit()
+
+# Print image type
+printImageType(t1w)
+
+# Zoom in a couple of times for better precision
 IJ.run("In [+]", "")
 IJ.run("In [+]", "")
 
-# --- Fatiamento 1 ---
+# --- Slice 1 ---
 t1w.setSlice(1)
-IJ.log("Agora na Fatia 1 da imagem ponderada em T1")
+IJ.log("ACR T1w Slice 1")
 
-t1_vert = get_measurement(t1w, "Fatia 1: Desenhe linha VERTICAL")
-t1_horz = get_measurement(t1w, "Fatia 1: Desenhe linha HORIZONTAL")
+t1_vert = get_measurement(t1w, "Slice 1: Draw a VERTICAL straight line")
+t1_horz = get_measurement(t1w, "Slice 1: Draw a HORIZONTAL straight line")
 
-# --- Fatiamento 5 ---
+# --- Slice 5 ---
 t1w.setSlice(5)
-IJ.log("Agora na Fatia 5 da imagem ponderada em T1")
+IJ.log("ACR T1w Slice 5")
 
-t1_diag1 = get_measurement(t1w, "Fatia 5: Desenhe linha DIAGONAL 1")
-t1_diag2 = get_measurement(t1w, "Fatia 5: Desenhe linha DIAGONAL 2")
-t1_vert_5 = get_measurement(t1w, "Fatia 5: Desenhe linha VERTICAL")
-t1_horz_5 = get_measurement(t1w, "Fatia 5: Desenhe linha HORIZONTAL")
+t1_diag1 = get_measurement(t1w, "Slice 5: Draw a DIAGONAL straight line (Diagonal 1)")
+t1_diag2 = get_measurement(t1w, "Slice 5: Draw a DIAGONAL straight line (Diagonal 2)")
+t1_vert_5 = get_measurement(t1w, "Slice 5: Draw a VERTICAL straight line")
+t1_horz_5 = get_measurement(t1w, "Slice 5: Draw a HORIZONTAL straight line")
 
 t1w.close()
 
 # === LOG FINAL ===
-IJ.log("=== MEDIDAS CONCLUIDAS ===")
+IJ.log("=== SUMMARY ===")
 IJ.log("LOCALIZER: {:.3f}".format(localizer_measurement))
-IJ.log("T1 Fatia 1 - Vertical: {:.3f}, Horizontal: {:.3f}".format(t1_vert, t1_horz))
-IJ.log("T1 Fatia 5 - Diagonal 1: {:.3f}, Diagonal 2: {:.3f}".format(t1_diag1, t1_diag2))
-IJ.log("T1 Fatia 5 - Vertical: {:.3f}, Horizontal: {:.3f}".format(t1_vert_5, t1_horz_5))
+IJ.log("T1 Slice 1 - Vertical: {:.3f}, Horizontal: {:.3f}".format(t1_vert, t1_horz))
+IJ.log("T1 Slice 5 - Diagonal 1: {:.3f}, Diagonal 2: {:.3f}".format(t1_diag1, t1_diag2))
+IJ.log("T1 Slice 5 - Vertical: {:.3f}, Horizontal: {:.3f}".format(t1_vert_5, t1_horz_5))
 
 IJ.log("{:.3f}".format(localizer_measurement))
 IJ.log("{:.3f}".format(t1_vert))
@@ -93,11 +127,10 @@ IJ.log("{:.3f}".format(t1_diag1))
 IJ.log("{:.3f}".format(t1_diag2))
 IJ.log("{:.3f}".format(t1_vert_5))
 IJ.log("{:.3f}".format(t1_horz_5))
-IJ.log(("---------------------------------------"))
 
 
-WaitForUserDialog("Teste de Exatidao Geometrica finalizado, colete os resultados.").show()
+WaitForUserDialog("Geometric accuracy test finalized, collect the results.").show()
 
 IJ.run("Clear Results")
-IJ.log("---- Fim do teste de Exatidao Geometrica ----")
-IJ.log("")
+IJ.log("---------------------------------------")
+

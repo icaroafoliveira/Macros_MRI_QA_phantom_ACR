@@ -50,6 +50,27 @@ def ajustar_window_level(imp, level, window):
     imp.setDisplayRange(min_display, max_display)
     imp.updateAndDraw()
 
+
+# === Function to print image type based on number of slices ===
+def printImageType(imp):
+    # Make sure that the image is the expected one
+    # Localizer is a single-slice image
+    # T1w has 11 slices
+    # T2w has 22 slices (2 echo times)
+     
+    slices = imp.getNSlices()     # z dimension
+
+    if slices < 11:
+        IJ.log("Image Type: Localizer.")
+        IJ.log("Repeat the measurement with ACR T1w image.")
+    elif slices > 11:
+        IJ.log("Image Type: ACR T2w image.")
+        IJ.log("Repeat the measurement with ACR T1w image.")
+    else:
+        IJ.log("Image Type: ACR T1w image.")
+
+IJ.log("---- Geometric accuracy Test ----")
+
 WaitForUserDialog("Abra a imagem T1 e realize o teste de exatidao de posicao de corte.").show()
 imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
 
@@ -57,6 +78,9 @@ imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
 if imp is None:
     IJ.error("Nenhuma imagem aberta.")
     raise SystemExit
+
+# Print image type
+printImageType(imp)
 
 # --- Primeira imagem ---
 # Vai para fatia 1

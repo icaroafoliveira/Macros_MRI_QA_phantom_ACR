@@ -9,6 +9,7 @@ from ij.io import OpenDialog
 import ij.io
 import math
 
+# === Function to open DICOM files ===
 def open_dicom_file(prompt):
     od = ij.io.OpenDialog(prompt, None)
     path = od.getPath()
@@ -21,6 +22,7 @@ def open_dicom_file(prompt):
     imp.show()
     return imp
 
+# === Function to close the W&L window if open ===
 def fechar_wl():
     # Títulos mais comuns dessa janela
     candidatos = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
@@ -48,6 +50,24 @@ def fechar_wl():
             return True
     return False
 
+# === Function to print image type based on number of slices ===
+def printImageType(imp):
+    # Make sure that the image is the expected one
+    # Localizer is a single-slice image
+    # T1w has 11 slices
+    # T2w has 22 slices (2 echo times)
+     
+    slices = imp.getNSlices()     # z dimension
+
+    if slices < 11:
+        IJ.log("Image Type: Localizer.")
+        IJ.log("Repeat the measurement with ACR T1w image.")
+    elif slices > 11:
+        IJ.log("Image Type: ACR T2w image.")
+        IJ.log("Repeat the measurement with ACR T1w image.")
+    else:
+        IJ.log("Image Type: ACR T1w image.")
+
 IJ.log("---- Inicio do teste de Resolucao de Alto Contraste ----")
 WaitForUserDialog("Abra a imagem T1 e realize o teste de resolucao de alto contraste.").show()
 imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
@@ -55,6 +75,9 @@ imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
 if imp is None:
     IJ.error("Nenhuma imagem aberta.")
     raise SystemExit
+
+# Print image type
+printImageType(imp)
 
 # ===== Passo 1: Selecionar fatia =====
 imp.setSlice(1)

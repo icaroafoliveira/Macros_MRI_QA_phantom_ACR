@@ -6,6 +6,7 @@ from ij.process import ImageStatistics
 from ij.measure import ResultsTable
 from ij.io import OpenDialog
 
+# === Function to open DICOM files ===
 def open_dicom_file(prompt):
     od = OpenDialog(prompt, None)
     path = od.getPath()
@@ -18,6 +19,25 @@ def open_dicom_file(prompt):
     imp.show()
     return imp
 
+# === Function to print image type based on number of slices ===
+def printImageType(imp):
+    # Make sure that the image is the expected one
+    # Localizer is a single-slice image
+    # T1w has 11 slices
+    # T2w has 22 slices (2 echo times)
+     
+    slices = imp.getNSlices()     # z dimension
+
+    if slices < 11:
+        IJ.log("Image Type: Localizer.")
+        IJ.log("Repeat the measurement with ACR T1w image.")
+    elif slices > 11:
+        IJ.log("Image Type: ACR T2w image.")
+        IJ.log("Repeat the measurement with ACR T1w image.")
+    else:
+        IJ.log("Image Type: ACR T1w image.")
+
+IJ.log("---- Geometric accuracy Test ----")
 
 IJ.log("---- Inicio do teste de Exatidao de Espessura ----")
 WaitForUserDialog("Abra a imagem T1 e realize o teste de exatidao da espessura").show()
@@ -26,6 +46,9 @@ imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
 if imp is None:
     IJ.error("Nenhuma imagem aberta.")
     raise SystemExit
+
+# Print image type
+printImageType(localizer)
 
 IJ.run("Clear Results")
 IJ.run(imp, "Original Scale", "")

@@ -16,6 +16,7 @@ import math
 #    imp.setDisplayRange(min_display, max_display)
 #    imp.updateAndDraw()
 
+# === Function to calculate optimal window/level based on histogram analysis ===
 def calcular_window_level(imp):
     stats = imp.getStatistics()
     hist = stats.histogram
@@ -60,6 +61,7 @@ def calcular_window_level(imp):
 
     return level, window
 
+# === Function to close any open Brightness/Contrast or Window/Level dialogs ===
 def fechar_wl():
     # Títulos mais comuns dessa janela
     candidatos = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
@@ -108,6 +110,24 @@ def open_dicom_file(prompt):
     imp.show()
     return imp
 
+# === Function to print image type based on number of slices ===
+def printImageType(imp):
+    # Make sure that the image is the expected one
+    # Localizer is a single-slice image
+    # T1w has 11 slices
+    # T2w has 22 slices (2 echo times)
+     
+    slices = imp.getNSlices()     # z dimension
+
+    if slices < 11:
+        IJ.log("Image Type: Localizer.")
+        IJ.log("Repeat the measurement with ACR T1w image.")
+    elif slices > 11:
+        IJ.log("Image Type: ACR T2w image.")
+        IJ.log("Repeat the measurement with ACR T1w image.")
+    else:
+        IJ.log("Image Type: ACR T1w image.")
+
 IJ.log("---- Inicio do teste de Detalhes de Baixo Contraste ----")    
 WaitForUserDialog("Clique em OK para selecionar a imagem T1 e realize a contagem das esferas de baixo indice de contraste.").show()
 
@@ -117,6 +137,9 @@ imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
 if imp is None:
     IJ.error("Nenhuma imagem aberta.")
     raise SystemExit
+
+# Print image type
+printImageType(imp)
 
 # --- Primeira imagem ---
 
@@ -189,6 +212,9 @@ imp2 = IJ.getImage()
 if imp2 is None or imp2 == imp:
     IJ.error("Nenhuma nova imagem aberta ou a mesma imagem foi reutilizada.")
     raise SystemExit
+
+# Print image type
+printImageType(imp2)
 
 IJ.run("In [+]","")
 IJ.run("In [+]","")

@@ -1,4 +1,7 @@
-# @MenuPath label="MacroQA>Central Frequency Test"
+# Macro to extract the central frequency from the DICOM header of an ACR phantom MRI scan.
+# The script assumes that the user will select the ACR T1-weighted image.
+# The Imaging Frequency tag (0018, 0084) is extracted and printed in the log.
+
 
 from ij import IJ
 from ij.io import OpenDialog
@@ -20,7 +23,7 @@ imp = IJ.openImage(path)
 info = imp.getInfoProperty()
 
 # Initiate the log 
-IJ.log("=== Central Frequency Test ===")
+IJ.log("---- Central Frequency Test ----")
 
 # Make sure that the image is the expected one
 # Localizer is a single-slice image
