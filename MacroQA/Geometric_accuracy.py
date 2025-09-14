@@ -1,3 +1,5 @@
+# @MenuPath label="MacroQA>Geometric Accuracy Test"
+
 from ij import IJ
 from ij.io import OpenDialog
 from ij.measure import ResultsTable
@@ -91,6 +93,7 @@ IJ.log("{:.3f}".format(t1_diag1))
 IJ.log("{:.3f}".format(t1_diag2))
 IJ.log("{:.3f}".format(t1_vert_5))
 IJ.log("{:.3f}".format(t1_horz_5))
+IJ.log(("---------------------------------------"))
 
 
 WaitForUserDialog("Teste de Exatidao Geometrica finalizado, colete os resultados.").show()
