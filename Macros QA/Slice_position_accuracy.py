@@ -62,10 +62,8 @@ def printImageType(imp):
 
     if slices < 11:
         IJ.log("Image Type: Localizer.")
-        IJ.log("Repeat the measurement with ACR T1w image.")
     elif slices > 11:
         IJ.log("Image Type: ACR T2w image.")
-        IJ.log("Repeat the measurement with ACR T1w image.")
     else:
         IJ.log("Image Type: ACR T1w image.")
 
