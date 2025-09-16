@@ -21,7 +21,7 @@ def calcular_window_level(imp):
     stats = imp.getStatistics()
     hist = stats.histogram
     if hist is None:
-        print("Histograma não disponível.")
+        print("Histogram not available.")
         return None, None
     if callable(hist):
         hist = hist()
@@ -53,7 +53,7 @@ def calcular_window_level(imp):
             y_fit.append(y)
 
     if len(x_fit) < 2:
-        print("Poucos pontos significativos acima da mediana.")
+        print("Few significant points above the median.")
         return None, None
 
     level = (max(x_fit) + min(x_fit)) / 2.0
@@ -105,7 +105,7 @@ def open_dicom_file(prompt):
         return None
     imp = IJ.openImage(path)
     if imp is None:
-        IJ.error("Falha ao abrir a imagem.")
+        IJ.error("Failed to open the image.")
         return None
     imp.show()
     return imp
@@ -126,14 +126,14 @@ def printImageType(imp):
     else:
         IJ.log("Image Type: ACR T1w image.")
 
-IJ.log("---- Inicio do teste de Detalhes de Baixo Contraste ----")    
-WaitForUserDialog("Clique em OK para selecionar a imagem T1 e realize a contagem das esferas de baixo indice de contraste.").show()
+IJ.log("---- Start of Low Contrast Objective Detectability Test ----")    
+WaitForUserDialog("Click OK to select the T1 image and perform the count of low-contrast spheres.").show()
 
 imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
 
 # Verifica se a imagem está aberta
 if imp is None:
-    IJ.error("Nenhuma imagem aberta.")
+    IJ.error("No image open.")
     raise SystemExit
 
 # Print image type
@@ -164,18 +164,18 @@ if level is not None:
 #print("Display range aplicado:")
 #print("Min:", imp.getDisplayRangeMin())
 #print("Max:", imp.getDisplayRangeMax())
-WaitForUserDialog("Fatia 8 - Realize a analise e clique OK").show()
-fatia8 = get_number_or_nan("Digite a quantidade de esferas visiveis na fatia 8:", 1.0)
+WaitForUserDialog("Slice 8 - Perform the analysis and click OK").show()
+fatia8 = get_number_or_nan("Enter the number of visible spheres in slice 8:", 1.0)
 
 # Vai para fatia 9
 imp.setSlice(9)
-WaitForUserDialog("Fatia 9 - Realize a analise e clique OK").show()
-fatia9 = get_number_or_nan("Digite a quantidade de esferas visiveis na fatia 9:", 1.0)
+WaitForUserDialog("Slice 9 - Perform the analysis and click OK").show()
+fatia9 = get_number_or_nan("Enter the number of visible spheres in slice 9:", 1.0)
 
 # Vai para fatia 10
 imp.setSlice(10)
-WaitForUserDialog("Fatia 10 - Realize a analise e clique OK").show()
-fatia10 = get_number_or_nan("Digite a quantidade de esferas visiveis na fatia 10:", 1.0)
+WaitForUserDialog("Slice 10 - Perform the analysis and click OK").show()
+fatia10 = get_number_or_nan("Enter the number of visible spheres in slice 10:", 1.0)
 
 # Vai para fatia 11
 #ajustar_window_level(imp)
@@ -196,19 +196,19 @@ if level is not None:
     IJ.run("Brightness/Contrast...")
     IJ.run("Window/Level...")
     
-WaitForUserDialog("Fatia 11 - Realize a analise e clique OK").show()
-fatia11 = get_number_or_nan("Digite a quantidade de esferas visiveis na fatia 11:", 1.0)
+WaitForUserDialog("Slice 11 - Perform the analysis and click OK").show()
+fatia11 = get_number_or_nan("Enter the number of visible spheres in slice 11:", 1.0)
 imp.close()
 # --- Solicita nova imagem ---
 
-WaitForUserDialog("Abra a imagem ponderada em T2.").show()
-t2w = open_dicom_file("Clique Ok para selecionar a imagem ponderada em T2")
+WaitForUserDialog("Open the T2-weighted image.").show()
+t2w = open_dicom_file("Click OK to select the T2-weighted image.")
 if t2w is None:
     exit()
 # Obtém a nova imagem ativa
 imp2 = IJ.getImage()
 if imp2 is None or imp2 == imp:
-    IJ.error("Nenhuma nova imagem aberta ou a mesma imagem foi reutilizada.")
+    IJ.error("No new image opened or the same image was reused.")
     raise SystemExit
 
 # Print image type
@@ -238,18 +238,18 @@ if level is not None:
 #print("Display range aplicado:")
 #print("Min:", imp2.getDisplayRangeMin())
 #print("Max:", imp2.getDisplayRangeMax())
-WaitForUserDialog("Fatia 16 - Realize a analise e clique OK").show()
-fatia16 = get_number_or_nan("Digite a quantidade de esferas visiveis na fatia 16:", 1.0)
+WaitForUserDialog("Slice 16 - Perform the analysis and click OK").show()
+fatia16 = get_number_or_nan("Enter the number of visible spheres in slice 16:", 1.0)
 
 # Vai para fatia 18 da nova imagem
 imp2.setSlice(18)
-WaitForUserDialog("Fatia 18 - Realize a analise e clique OK").show()
-fatia18 = get_number_or_nan("Digite a quantidade de esferas visiveis na fatia 18:", 1.0)
+WaitForUserDialog("Slice 18 - Perform the analysis and click OK").show()
+fatia18 = get_number_or_nan("Enter the number of visible spheres in slice 18:", 1.0)
 
 # Vai para fatia 20 da nova imagem
 imp2.setSlice(20)
-WaitForUserDialog("Fatia 20 - Realize a analise e clique OK").show()
-fatia20 = get_number_or_nan("Digite a quantidade de esferas visiveis na fatia 20:", 1.0)
+WaitForUserDialog("Slice 20 - Perform the analysis and click OK").show()
+fatia20 = get_number_or_nan("Enter the number of visible spheres in slice 20:", 1.0)
 
 # Vai para fatia 22 da nova imagem
 imp2.setSlice(22)
@@ -270,17 +270,17 @@ if level is not None:
     IJ.run("Brightness/Contrast...")
     IJ.run("Window/Level...")
     
-WaitForUserDialog("Fatia 22 - Realize a analise e clique OK").show()
-fatia22 = get_number_or_nan("Digite a quantidade de esferas visiveis na fatia 22:", 1.0)
+WaitForUserDialog("Slice 22 - Perform the analysis and click OK").show()
+fatia22 = get_number_or_nan("Enter the number of visible spheres in slice 22:", 1.0)
 esferas_T1 = fatia8 + fatia9 + fatia10 + fatia11
 esferas_T2 = fatia16 + fatia18 + fatia20 + fatia22
 imp2.close()
 fechar_wl()
 
-WaitForUserDialog("Teste de Detalhes de Baixo Contraste finalizado, colete os resultados.").show()
+WaitForUserDialog("Low Contrast Detail Test completed, collect the results.").show()
 
 IJ.run("Clear Results")
-IJ.log("Quantidade de esferas em T1: %s" % ("NaN" if (isinstance(esferas_T1, float) and math.isnan(esferas_T1)) else int(esferas_T1)))
-IJ.log("Quantidade de esferas em T2: %s" % ("NaN" if (isinstance(esferas_T2, float) and math.isnan(esferas_T2)) else int(esferas_T2)))
-IJ.log("---- Fim do teste de Detalhes de Baixo Contraste ----")
+IJ.log("Number of spheres in T1: %s" % ("NaN" if (isinstance(esferas_T1, float) and math.isnan(esferas_T1)) else int(esferas_T1)))
+IJ.log("Number of spheres in T2: %s" % ("NaN" if (isinstance(esferas_T2, float) and math.isnan(esferas_T2)) else int(esferas_T2)))
+IJ.log("---- End of Low Contrast Objective Detectability Test ----")
 IJ.log("")

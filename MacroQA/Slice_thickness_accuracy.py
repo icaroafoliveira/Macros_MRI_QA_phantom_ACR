@@ -14,10 +14,17 @@ def open_dicom_file(prompt):
         return None
     imp = IJ.openImage(path)
     if imp is None:
-        IJ.error("Falha ao abrir a imagem.")
+        IJ.error("Fail to open the image.")
         return None
     imp.show()
     return imp
+
+
+def fechar_result():
+    # só tenta se existir
+    if WindowManager.getWindow("Results") is not None:
+        IJ.selectWindow("Results")
+        IJ.run("Close")
 
 # === Function to print image type based on number of slices ===
 def printImageType(imp):
@@ -35,18 +42,17 @@ def printImageType(imp):
     else:
         IJ.log("Image Type: ACR T1w image.")
 
-IJ.log("---- Geometric accuracy Test ----")
+IJ.log("---- Slice Thickness Accuracy Test ----")
 
-IJ.log("---- Inicio do teste de Exatidao de Espessura ----")
-WaitForUserDialog("Abra a imagem T1 e realize o teste de exatidao da espessura").show()
+WaitForUserDialog("Open the T1 image and perform the slice thickness accuracy test.").show()
 imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
 
 if imp is None:
-    IJ.error("Nenhuma imagem aberta.")
+    IJ.error("No image open.")
     raise SystemExit
 
 # Print image type
-printImageType(localizer)
+printImageType(imp)
 
 IJ.run("Clear Results")
 IJ.run(imp, "Original Scale", "")
@@ -65,10 +71,10 @@ imp.updateAndDraw()
 IJ.setTool("rectangle")
 
 # Caixa para ROI 1
-WaitForUserDialog("Selecionar ROI 1 (Retangulo)").show()
+WaitForUserDialog("Select ROI 1 (Rectangle)").show()
 roi1 = imp.getRoi()
 if roi1 is None or roi1.getType() != Roi.RECTANGLE:
-    IJ.error("ROI 1 com formato invalido ou nao selecionada.")
+    IJ.error("ROI 1 has an invalid shape or was not selected.")
     raise SystemExit
 imp.setRoi(roi1)
 IJ.run("Measure")
@@ -76,10 +82,10 @@ stats1 = imp.getStatistics(Measurements.MEAN)
 mean1 = stats1.mean
 
 # Caixa para ROI 2
-WaitForUserDialog("Selecionar ROI 2 (Retangulo)").show()
+WaitForUserDialog("Select ROI 2 (Rectangle)").show()
 roi2 = imp.getRoi()
 if roi2 is None or roi2.getType() != Roi.RECTANGLE:
-    IJ.error("ROI 2 com formato invalido ou nao selecionada.")
+    IJ.error("ROI 2 has an invalid shape or was not selected.")
     raise SystemExit
 imp.setRoi(roi2)
 IJ.run("Measure")
@@ -98,20 +104,20 @@ imp.updateAndDraw()
 IJ.setTool("line")
 
 # Caixa para ROI 3
-WaitForUserDialog("Selecionar ROI 3 (Linha)").show()
+WaitForUserDialog("Select ROI 3 (Straight Line)").show()
 roi3 = imp.getRoi()
 if roi3 is None or roi3.getType() != Roi.LINE:
-    IJ.error("ROI 3 com formato invalido ou nao selecionada.")
+    IJ.error("ROI 3 has an invalid shape or was not selected.")
     raise SystemExit
 imp.setRoi(roi3)
 IJ.run("Measure")
 length3 = roi3.getLength()
 
 # Caixa para ROI 4
-WaitForUserDialog("Selecionar ROI 4 (Linha)").show()
+WaitForUserDialog("Select ROI 4 (Straight Line)").show()
 roi4 = imp.getRoi()
 if roi4 is None or roi4.getType() != Roi.LINE:
-    IJ.error("ROI 4 com formato invalido ou nao selecionada.")
+    IJ.error("ROI 4 has an invalid shape or was not selected.")
     raise SystemExit
 imp.setRoi(roi4)
 IJ.run("Measure")
@@ -126,12 +132,13 @@ IJ.log("{:.3f}".format(resultado))
 # Adiciona o resultado na tabela de resultados
 rt = ResultsTable.getResultsTable()
 rt.incrementCounter()
-rt.addValue("Resultado Final", resultado)
+rt.addValue("Final result", resultado)
 rt.show("Results")
     
-WaitForUserDialog("Teste de Exatidao de Espessura finalizado, colete os resultados.").show()
+WaitForUserDialog("Slice Thickness Accuracy Test completed, collect the results.").show()
 imp.close()
+fechar_result()
 
 IJ.run("Clear Results")
-IJ.log("---- Fim do teste de Exatidao de Espessura ----")
+IJ.log("---- End of the Slice Thickness Accuracy Test ----")
 IJ.log("")

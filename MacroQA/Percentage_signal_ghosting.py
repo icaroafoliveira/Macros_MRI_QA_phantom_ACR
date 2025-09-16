@@ -40,7 +40,7 @@ def open_dicom_file(prompt):
         return None
     imp = IJ.openImage(path)
     if imp is None:
-        IJ.error("Falha ao abrir a imagem.")
+        IJ.error("Failed to open the image.")
         return None
     imp.show()
     return imp
@@ -61,12 +61,12 @@ def printImageType(imp):
     else:
         IJ.log("Image Type: ACR T1w image.")
 
-IJ.log("---- Inicio do teste de imagem residual ----")
-WaitForUserDialog("Abra a imagem T1 e realize o teste de imagem residual").show()
+IJ.log("---- Start of Percentage Signal Ghosting Test ----")
+WaitForUserDialog("Open the T1 image and perform the residual image test").show()
 imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
 
 if imp is None:
-    IJ.error("Nenhuma imagem aberta.")
+    IJ.error("No image open.")
     raise SystemExit
 
 # Print image type
@@ -91,14 +91,14 @@ def medir_roi_mean(imp, roi=None):
 
 # ===== Passo 1: ir para fatia 7 e centralizar window/level =====
 if imp.getNSlices() < 7:
-    IJ.error("A pilha não possui 7 fatias (tem {}).".format(imp.getNSlices()))
+    IJ.error("The stack does not contain 7 slices (it has {}).".format(imp.getNSlices()))
     raise SystemExit
 imp.setSlice(7)
-IJ.log("Fatia definida para 7.")
+IJ.log("Slice set to 7.")
 
 # Ajusta window/level para valores centrais
 IJ.resetMinAndMax(imp)
-IJ.log("Window/Level ajustados para valores centrais.")
+IJ.log("Window/Level adjusted to central values.")
 
 # ===== Passo 2: Calibração =====
 cal = imp.getCalibration()
@@ -113,23 +113,23 @@ elif unit == "cm":
     pixel_width_cm = pw
     pixel_height_cm = ph
 else:
-    gd = GenericDialog("Calibracao ausente ou nao reconhecida")
-    gd.addMessage("Informe o tamanho do pixel (em mm).")
+    gd = GenericDialog("Calibration missing or not recognized")
+    gd.addMessage("Enter the pixel size (in mm).")
     gd.addNumericField("Pixel width (mm):", 0.0, 6)
     gd.addNumericField("Pixel height (mm):", 0.0, 6)
     gd.showDialog()
     if gd.wasCanceled():
-        IJ.log("Cancelado pelo usuário.")
+        IJ.log("Cancelled by user.")
         raise SystemExit
     pw_mm = gd.getNextNumber()
     ph_mm = gd.getNextNumber()
     if pw_mm <= 0 or ph_mm <= 0:
-        IJ.error("Valores de pixel invalidos.")
+        IJ.error("Invalid pixel values.")
         raise SystemExit
     pixel_width_cm = pw_mm / 10.0
     pixel_height_cm = ph_mm / 10.0
 
-IJ.log("Calibracao usada (cm/pixel): {:.6g} x {:.6g}  (unit='{}')".format(pixel_width_cm, pixel_height_cm, cal.getUnit()))
+IJ.log("Calibration used (cm/pixel) : {:.6g} x {:.6g}  (unit='{}')".format(pixel_width_cm, pixel_height_cm, cal.getUnit()))
 
 # ===== Passo 2b: Criar ROI grande de 200 cm² para posicionamento manual =====
 radius_large = area_to_radius_pixels(200.0, pixel_width_cm, pixel_height_cm)
@@ -145,12 +145,12 @@ if rm is None:
 rm.reset()  # limpa ROIs antigas
 rm.addRoi(roi_large)
 
-dlg = WaitForUserDialog("Posicionar ROI grande (200 cm^2)",
-    "Mova a ROI grande para o local desejado.\nClique OK quando terminar.")
+dlg = WaitForUserDialog("Position large ROI (200 cm^2)",
+    "Move the large ROI to the desired location. \nClick OK when done.")
 dlg.show()
 
 mean_ref = medir_roi_mean(imp)
-IJ.log("Media inicial (ROI grande): {:.3f}".format(mean_ref))
+IJ.log("Initial mean (large ROI): {:.3f}".format(mean_ref))
 
 # ===== Passo 3: Ajuste manual do janelamento=====
 
@@ -165,8 +165,8 @@ IJ.setMinAndMax(imp, min_display, max_display)
 IJ.run("Brightness/Contrast...")
 IJ.run("Window/Level...")
 
-dlg = WaitForUserDialog("Ajuste manual - janelamento",
-    "Aumente o valor da janela para que o fundo da imagem se torne iluminado (~50)")
+dlg = WaitForUserDialog("Manual adjustment - windowing",
+    "Increase the window value until the background of the image becomes illuminated (~50)")
 dlg.show()
 
 # Função auxiliar para criar e ajustar ROI em qualquer posição
@@ -197,8 +197,8 @@ right=criar_roi_ajustar(
     altura_cm=20.0,
     desloc_x_px=offset_x_dir,
     desloc_y_px=0,
-    titulo="ROI Direita do fantoma",
-    mensagem="Ajuste a ROI para a regiao a direita do fantoma."
+    titulo="RRight ROI of the phantom",
+    mensagem="Adjust the ROI to the region to the right of the phantom."
 )
 
 # ===== Passo 5: ROI abaixo =====
@@ -209,8 +209,8 @@ btm=criar_roi_ajustar(
     altura_cm=1.5,
     desloc_x_px=0,
     desloc_y_px=offset_y_baixo,
-    titulo="ROI Abaixo do fantoma",
-    mensagem="Ajuste a ROI para a regiao abaixo do fantoma."
+    titulo="ROI Below the phantom",
+    mensagem="Adjust the ROI to the region below the phantom."
 )
 
 # ===== Passo 6: ROI acima =====
@@ -221,8 +221,8 @@ top=criar_roi_ajustar(
     altura_cm=1.5,
     desloc_x_px=0,
     desloc_y_px=offset_y_cima,
-    titulo="ROI Acima do fantoma",
-    mensagem="Ajuste a ROI para a regiao acima do fantoma."
+    titulo="ROI Above the phantom",
+    mensagem="Adjust the ROI to the region above the phantom."
 )
 
 # ===== Passo 7: ROI à esquerda =====
@@ -233,32 +233,32 @@ left=criar_roi_ajustar(
     altura_cm=20.0,
     desloc_x_px=offset_x_esq,
     desloc_y_px=0,
-    titulo="ROI Esquerda do fantoma",
-    mensagem="Ajuste a ROI para a regiao a esquerda do fantoma."
+    titulo="ROI Left of the phantom",
+    mensagem="Adjust the ROI to the region to the left of the phantom."
 )
 
 
 # ===== Passo 8: Cálculo do Ghosting Ratio =====
 if (mean_ref) == 0:
-    IJ.log("Erro: Valor de Pixel Medio na ROI Central == 0, não e possivel calcular o GR.")
+    IJ.log("Error: Mean Pixel Value in the Central ROI == 0, unable to calculate GR.")
 else:
     GR = abs((((top - btm)-(left+right))*100) / (2.0*mean_ref))
-    IJ.log("Ghosting Ratio calculado: {:.10f}%".format(GR))
+    IJ.log("Ghosting Ratio calculated: {:.10f}%".format(GR))
     IJ.log("{:.10f}%".format(GR))
 
-gd = GenericDialog("Instrucoes")
-gd.addMessage("AVISO!", Font("SansSerif", Font.BOLD, 20))
-gd.addMessage("Feche a janela de ROI Manager logo apos finalizar o teste.", Font("SansSerif", Font.ITALIC, 12))
-gd.addMessage("Clique em 'OK' para continuar.", Font("SansSerif", Font.ITALIC, 12))
+gd = GenericDialog("Instructions")
+gd.addMessage("WARNING!", Font("SansSerif", Font.BOLD, 20))
+gd.addMessage("Close the ROI Manager window right after completing the test.", Font("SansSerif", Font.ITALIC, 12))
+gd.addMessage("Click 'OK' to continue.", Font("SansSerif", Font.ITALIC, 12))
 gd.showDialog()
 if gd.wasCanceled():
-    IJ.log("Cancelado.")
+    IJ.log("Cancelled.")
     raise SystemExit
 
-WaitForUserDialog("Teste de Imagem Residual finalizado, colete os resultados.\n").show()
+WaitForUserDialog("Percentage Signal Ghosting Test completed, collect the results.\n").show()
 imp.close()
 fechar_wl()
 
 IJ.run("Clear Results")
-IJ.log("---- Fim do teste de imagem residual ----")
+IJ.log("---- End of Percentage Signal Ghosting Test ----")
 IJ.log("")

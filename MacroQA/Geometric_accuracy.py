@@ -5,7 +5,7 @@
 # The lengths of the lines are measured and printed in the log.
 
 
-from ij import IJ
+from ij import IJ, WindowManager
 from ij.io import OpenDialog
 from ij.measure import ResultsTable
 from ij.gui import WaitForUserDialog, Roi
@@ -28,7 +28,7 @@ def open_dicom_file(prompt):
 # === Function to perform line measurements ===
 def get_measurement(imp, instruction):
     # Espera o usuário desenhar a ROI
-    wait = WaitForUserDialog("Draw a straigth line", instruction)
+    wait = WaitForUserDialog("Draw a straight line", instruction)
     wait.show()
 
     roi = imp.getRoi()
@@ -43,6 +43,12 @@ def get_measurement(imp, instruction):
     length = rt.getValue("Length", rt.size() - 1)
     IJ.log("Length: {:.3f}".format(length))
     return length
+
+def fechar_result():
+    # só tenta se existir
+    if WindowManager.getWindow("Results") is not None:
+        IJ.selectWindow("Results")
+        IJ.run("Close")
 
 # === Function to print image type based on number of slices ===
 def printImageType(imp):
@@ -128,7 +134,8 @@ IJ.log("{:.3f}".format(t1_horz_5))
 
 
 WaitForUserDialog("Geometric accuracy test finalized, collect the results.").show()
+fechar_result()
 
 IJ.run("Clear Results")
-IJ.log("---------------------------------------")
-
+IJ.log("---- End of the Geometric Accuracy test ----")
+IJ.log("")

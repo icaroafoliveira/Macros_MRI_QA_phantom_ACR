@@ -17,7 +17,7 @@ def open_dicom_file(prompt):
         return None
     imp = IJ.openImage(path)
     if imp is None:
-        IJ.error("Falha ao abrir a imagem.")
+        IJ.error("Fail to open the image.")
         return None
     imp.show()
     return imp
@@ -66,12 +66,12 @@ def printImageType(imp):
     else:
         IJ.log("Image Type: ACR T1w image.")
 
-IJ.log("---- Inicio do teste de Resolucao de Alto Contraste ----")
-WaitForUserDialog("Abra a imagem T1 e realize o teste de resolucao de alto contraste.").show()
+IJ.log("---- High Contrast Spatial Resolution Test ----")
+WaitForUserDialog("Open the T1 image and perform the high-contrast resolution test.").show()
 imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
 
 if imp is None:
-    IJ.error("Nenhuma imagem aberta.")
+    IJ.error("No image open.")
     raise SystemExit
 
 # Print image type
@@ -79,11 +79,11 @@ printImageType(imp)
 
 # ===== Passo 1: Selecionar fatia =====
 imp.setSlice(1)
-IJ.log("Fatia definida para 1.")
+IJ.log("Slice set to 1.")
 
 IJ.run(imp, "Original Scale", "")
 IJ.resetMinAndMax(imp)
-IJ.log("Window/Level ajustados para valores centrais.")
+IJ.log("Window/Level adjusted to central values.")
 
 # Dar zoom como se fosse tecla "+"
 IJ.run("In [+]", "")
@@ -98,15 +98,15 @@ if win is not None:
     
 # ===== Passo 2: Usuário seleciona a ROI =====
 dlg = WaitForUserDialog(
-    "Selecione a area para o zoom. \n"
-    "Desenhe uma ROI na regiao que deseja ampliar e clique OK.")
+    "Select the area for zoom. \n"
+    "Draw a ROI in the region you want to enlarge and click OK..")
     
 dlg.show()
-IJ.log("Zoom ajustado para a ROI selecionada")
+IJ.log("Zoom adjusted to the selected ROI")
 
 roi = imp.getRoi()
 if roi is None:
-    IJ.error("Nenhuma ROI foi selecionada!")
+    IJ.error("No ROI was selected!")
     raise SystemExit
 else:
     bounds = roi.getBounds()
@@ -141,21 +141,21 @@ from ij.gui import GenericDialog
 from java.awt import Font
 from ij import IJ
 
-gd = GenericDialog("Instrucoes")
-gd.addMessage("AVISO!", Font("SansSerif", Font.BOLD, 20))
-gd.addMessage("Ajuste level e window no proximo passo ate que os furos no insert de resolucao sejam exibidos individualmente.", Font("SansSerif", Font.ITALIC, 12))
-gd.addMessage("Clique em 'OK' para continuar.", Font("SansSerif", Font.ITALIC, 12))
+gd = GenericDialog("Instructions")
+gd.addMessage("WARNING!", Font("SansSerif", Font.BOLD, 20))
+gd.addMessage("Adjust level and window in the next step until the holes in the resolution insert are displayed individually.", Font("SansSerif", Font.ITALIC, 12))
+gd.addMessage("Press 'OK' to continue.", Font("SansSerif", Font.ITALIC, 12))
 gd.showDialog()
 if gd.wasCanceled():
-    IJ.log("Cancelado.")
+    IJ.log("Cancelled.")
     raise SystemExit
 
 
 
 dlg = WaitForUserDialog( 
-    "Os tres conjuntos de pontos formando quadrados tem diferentes tamanhos de furo.\n"
-    "Da esquerda para a direita: 1.1 mm, 1.0 mm e 0.9 mm.\n"
-    "Em cada conjunto, o quadrado de cima indica a resolucao horizontal e o de baixo a vertical."
+    "The three sets of dot patterns forming squares have different hole sizes.\n"
+    "From left to right: 1.1 mm, 1.0 mm, and 0.9 mm.\n"
+    "In each set, the top square indicates horizontal resolution and the bottom one indicates vertical resolution."
 )
 dlg.show()
 
@@ -167,17 +167,17 @@ def get_number_or_nan(prompt, default=1.0):
         return float('nan')
     return v
 
-valor_upper = get_number_or_nan("Digite o valor do tamanho de furo upper em mm:", 1.0)
-valor_lower = get_number_or_nan("Digite o valor do tamanho de furo lower em mm:", 1.0)
+valor_upper = get_number_or_nan("Enter the hole size value for the upper in mm:", 1.0)
+valor_lower = get_number_or_nan("Enter the hole size value for the lower in mm::", 1.0)
 
 dlg = WaitForUserDialog( 
-	"Teste de Resolucao de Alto Contraste finalizado, colete os resultados.\n")
+	"High-Contrast Resolution Test completed, collect the results.\n")
 dlg.show()
 imp.close()
 fechar_wl()
 
 IJ.run("Clear Results")
-IJ.log("Tamanho de furo upper [mm]: %s" % ("NaN" if (isinstance(valor_upper, float) and math.isnan(valor_upper)) else ("%.1f" % valor_upper)))
-IJ.log("Tamanho de furo lower [mm]: %s" % ("NaN" if (isinstance(valor_lower, float) and math.isnan(valor_lower)) else ("%.1f" % valor_lower)))
-IJ.log("---- Fim do teste de Resolucao de Alto Contraste ----")
+IJ.log("Upper hole size [mm]: %s" % ("NaN" if (isinstance(valor_upper, float) and math.isnan(valor_upper)) else ("%.1f" % valor_upper)))
+IJ.log("Lower hole size [mm]: %s" % ("NaN" if (isinstance(valor_lower, float) and math.isnan(valor_lower)) else ("%.1f" % valor_lower)))
+IJ.log("---- End of the High Contrast Spatial Resolution Test ----")
 IJ.log("")

@@ -5,6 +5,7 @@
 
 from ij import IJ
 from ij.io import OpenDialog
+from ij.gui import WaitForUserDialog
 
 # call open dialog to get the DICOM path
 open_dia_file = OpenDialog("Open T1w image", None)
@@ -63,7 +64,10 @@ if start_index != -1:
 		central_frequency_mhz = float(central_freq_str)
 		IJ.log("The central frequency (Imaging Frequency) is: " + str(central_frequency_mhz) + " MHz")
 		IJ.log(str(central_frequency_mhz))
-		IJ.log("---------------------------------------")
+		dlg=WaitForUserDialog("Central Frequency test finished, collect the results.")
+		dlg.show()
+		IJ.log("---- End of the Central Frequency test ----")
+		IJ.log("")
 		
 	except ValueError:
 		IJ.log("Could not convert the value to a number.")

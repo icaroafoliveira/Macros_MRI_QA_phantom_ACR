@@ -120,7 +120,7 @@ else:
     gd.addNumericField("Pixel height (mm):", 0.0, 6)
     gd.showDialog()
     if gd.wasCanceled():
-        IJ.log("Canceled by the user.")
+        IJ.log("Cancelled by the user.")
         raise SystemExit
     pw_mm = gd.getNextNumber()
     ph_mm = gd.getNextNumber()
@@ -158,7 +158,7 @@ gd.addMessage("Close the ROI Manager window right after finishing the test.", Fo
 gd.addMessage("Press 'OK' to continue.", Font("SansSerif", Font.ITALIC, 12))
 gd.showDialog()
 if gd.wasCanceled():
-    IJ.log("Cancelado.")
+    IJ.log("Cancelled.")
     raise SystemExit
 
 mean_ref = medir_roi_mean(impA)
