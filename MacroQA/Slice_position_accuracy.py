@@ -22,7 +22,7 @@ def fechar_wl():
                 except:
                     pass
             return True
-    # fallback: varre janelas não-imagem e fecha se bater por nome
+    # fallback: check non-image windows and close if name it equal
     wins = WindowManager.getNonImageWindows() or []
     for w in wins:
         try:
