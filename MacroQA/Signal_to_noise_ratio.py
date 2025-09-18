@@ -11,7 +11,7 @@ from java.awt import Window, Font
 
 IJ.log("---- Signal to Noise Ratio Test ----")
 
-# === Function to print image type based on number of slices ===
+# === Step 1: Function to print image type based on number of slices ===
 def printImageType(imp):
     # Make sure that the image is the expected one
     # Localizer is a single-slice image
@@ -56,7 +56,7 @@ def medir_roi_std(imp, roi=None):
     return stats.stdDev
 
 def subtract_two_images_via_calculator():
-    # 1) Abrir imagens A e B
+    # 1) Open images A e B
     WaitForUserDialog("Open the first T1 image to proceed with the SNR test.").show()
     impA = open_dicom_file("Select the FIRST image (A)")
     IJ.run(impA, "Original Scale", "")
@@ -72,16 +72,16 @@ def subtract_two_images_via_calculator():
     impB.setSlice(7)
 
 
-#    # 2) Garantir que B tenha mesmo tamanho que A
-#    _match_size_B_to_A(impA, impB)
-#
-#    # 3) Converter para 32-bit (evita clipping/overflow e padroniza tipo)
-#    if impA.getBitDepth() != 32: IJ.run(impA, "32-bit", "")
-#    if impB.getBitDepth() != 32: IJ.run(impB, "32-bit", "")
+    #    # 2) Assures that B has same size as A
+    #    _match_size_B_to_A(impA, impB)
+    #
+    #    # 3) Converts to 32-bit (avoids clipping/overflow and standardizes type)
+    #    if impA.getBitDepth() != 32: IJ.run(impA, "32-bit", "")
+    #    if impB.getBitDepth() != 32: IJ.run(impB, "32-bit", "")
 
-    # 4) Image Calculator: A - B  (criando uma nova janela)
+    # 4) Image Calculator: A - B  (creates a new window)
     ic = ImageCalculator()
-    result = ic.run("subtract create", impA, impB)  # 'create' => nova imagem
+    result = ic.run("subtract create", impA, impB)  # 'create' => new image
     if result is not None:
         result.setTitle("Subtraction (A - B)")
         result.show()
@@ -93,15 +93,15 @@ def subtract_two_images_via_calculator():
     
     return result, impA
 
-# Verifica se a imagem está aberta
+# Verify if the image is open
 #if imp is None:
-#    IJ.error("Nenhuma imagem aberta.")
+#    IJ.error("No image open.")
 #    raise SystemExit
 
 result, impA = subtract_two_images_via_calculator()
 printImageType(impA)
 
-# ===== Passo 2: Calibração =====
+# ===== Step 2: calibration =====
 cal = impA.getCalibration()
 unit = (cal.getUnit() or "").lower()
 pw = cal.pixelWidth
@@ -132,7 +132,7 @@ else:
 
 IJ.log("Calibration used (cm/pixel): {:.6g} x {:.6g}  (unit='{}')".format(pixel_width_cm, pixel_height_cm, cal.getUnit()))
 
-# ===== Passo 2b: Criar ROI grande de 200 cm² para posicionamento manual =====
+# ===== Step 2b: Creates 200 cm² large ROI for manual positioning =====
 radius_large = area_to_radius_pixels(200.0, pixel_width_cm, pixel_height_cm)
 center_x = impA.getWidth() / 2.0
 center_y = impA.getHeight() / 2.0
@@ -143,11 +143,11 @@ dlg = WaitForUserDialog("Set ROI (200 cm^2)",
     "Move the ROI to the place that you wish.\nPress OK to continue.")
 dlg.show()
 
-# Adicionar ROI grande no ROI Manager
+# Add large ROI to ROI Manager
 rm = RoiManager.getInstance()
 if rm is None:
     rm = RoiManager()
-rm.reset()  # limpa ROIs antigas
+rm.reset()  # clean previous ROIs
 rm.addRoi(roi_large)
 
 result.setRoi(roi_large)
