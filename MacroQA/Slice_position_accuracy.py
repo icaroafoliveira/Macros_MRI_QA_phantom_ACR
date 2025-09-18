@@ -8,14 +8,14 @@ import math
 IJ.log("---- Slice Position Accuracy Test ----")
 
 def fechar_wl():
-    # Títulos mais comuns dessa janela
+    # brightness/contrast window management
     candidatos = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
     for t in candidatos:
         w = WindowManager.getWindow(t) or WindowManager.getFrame(t)
         if w is not None:
-            # fecha sem perguntar
+            # close without asking
             try:
-                w.dispose()   # fecha a janela
+                w.dispose()   # close the window
             except:
                 try:
                     w.setVisible(False)
@@ -35,7 +35,7 @@ def fechar_wl():
     return False
 
 def fechar_result():
-    # só tenta se existir
+    # Get Window only if it exists
     if WindowManager.getWindow("Results") is not None:
         IJ.selectWindow("Results")
         IJ.run("Close")
@@ -47,7 +47,7 @@ def zoom_to_rect_pixels(x, y, w, h, set_line_tool=True, clear_roi_after=True):
     """
     imp = IJ.getImage()
     imp.setRoi(Roi(int(x), int(y), int(w), int(h)))
-    # Comando nativo do ImageJ: Image ▸ Zoom ▸ To Selection
+    # Native ImageJ Command: Image ▸ Zoom ▸ To Selection
     IJ.run(imp, "To Selection", "")
     if set_line_tool:
         IJ.setTool("line")
@@ -56,7 +56,7 @@ def zoom_to_rect_pixels(x, y, w, h, set_line_tool=True, clear_roi_after=True):
 
 
 def get_measurement(imp, instruction, cutoff_px=127):
-    # Garante ferramenta de linha e espera o usuário
+    # set tool line and waits the user
     IJ.setTool("line")
     WaitForUserDialog("Draw the straight line.", instruction).show()
 
@@ -65,7 +65,7 @@ def get_measurement(imp, instruction, cutoff_px=127):
         IJ.error("Invalid ROI", "If the difference is zero in fact, press 'OK' to continue.")
         return int(0)
 
-    # mede: comprimento + centróide (para termos 'X' na tabela)
+    # measure: lenght + centroid (to get 'X' on the table) 
     IJ.run("Set Measurements...", "length centroid")
     IJ.run(imp, "Measure", "")
 
@@ -74,24 +74,24 @@ def get_measurement(imp, instruction, cutoff_px=127):
 
     length = rt.getValue("Length", row)
 
-    # pega X do centróide vindo da própria medição
-    x_val = rt.getValue("X", row)  # retorna NaN se coluna não existir
+    # get X at the centroid comming from own measure
+    x_val = rt.getValue("X", row)  # return NaN if column don't exist
     if math.isnan(x_val):
-        # fallback raro: se por algum motivo 'X' não veio, usa ponto médio geométrico
+        # rare fallback: if for any reason the program don't get 'X', use the geometric medium point
         x_val = (roi.getX1() + roi.getX2()) / 2.0
-        # OBS: isso já está em pixels
+        # OBS: already in pixels
 
-    # converte X medido para pixels se a imagem estiver calibrada (DICOM etc.)
+    # converts X measured as pixels if the image is calibrated (DICOM etc.)
     cal = imp.getCalibration()
     pw = cal.pixelWidth if (cal and cal.pixelWidth) else 1.0
     # se 'X' veio em unidades físicas, dividir por pixelWidth traz pra pixels;
     # se já estava em pixels, pw=1.0 e não muda nada.
     x_px = x_val / pw
 
-    # aplica regra de sinal com base na metade esquerda (x > 127)
+    # Apply signal rule as half left (x > 127)
     signed_length = -length if (x_px > float(cutoff_px)) else length
 
-    # opcional: atualizar a tabela para refletir o valor já com sinal
+    # optional: refresh table to reflect the signal value
     try:
         rt.setValue("Length", row, signed_length)
         rt.show("Results")
@@ -101,7 +101,7 @@ def get_measurement(imp, instruction, cutoff_px=127):
     #IJ.log("X_centroide(px)=%.3f  cutoff=%d  comprimento=%.3f" % (x_px, cutoff_px, signed_length))
     return signed_length
 
-# === funcao para abrir DICOM file ===
+# === open DICOM file ===
 def open_dicom_file(prompt):
     od = OpenDialog(prompt, None)
     path = od.getPath()
@@ -139,31 +139,31 @@ def printImageType(imp):
 WaitForUserDialog("Open the T1 image to proceed with the test.").show()
 imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
 
-# Verifica se a imagem está aberta
+# Verify if image is opened
 if imp is None:
     IJ.error("No image opened.")
     raise SystemExit
 
 printImageType(imp)
 
-# --- Primeira imagem ---
-# Vai para fatia 1
+# --- First Image ---
+# Go to first slice
 imp.setSlice(1)
 
 IJ.run(imp, "Original Scale", "")
-# Ajusta window/level para valores centrais
+# Ajust window/level to central values
 IJ.resetMinAndMax(imp)
 
-# Dar zoom como se fosse tecla "+"
+# 2x Zoom "+"
 IJ.run("In [+]", "")
 IJ.run("In [+]", "")
 
 
-# Ajuste de Window/Level: window = 10, level = 1000
+# Ajust Window/Level: window = 10, level = 1000
 ajustar_window_level(imp, level=1000, window=10)
 IJ.run("Brightness/Contrast...")
 IJ.run("Window/Level...")
-# Espera confirmação para análise
+# Wait for confirmation
 zoom_to_rect_pixels(x = 119, y = 53, w = 18, h = 12)
 WaitForUserDialog("Slice Position Accuracy Test.\n"
 "If the bar on the right is longer, the slice is mis-positioned superiorly; this bar length difference is assigned a positive value.\n" 
@@ -171,7 +171,7 @@ WaitForUserDialog("Slice Position Accuracy Test.\n"
 medida1 = get_measurement(imp, "Slice 1 - Draw the vertical straight line to get the height difference between the bars.\n"
 "Press 'OK' only after drawing the straight line.")
 
-# Vai para fatia 11
+# Go to 11th slice
 imp.setSlice(11)
 medida2 = get_measurement(imp, "Slice 11 - Draw the vertical straight line to get the height difference between the bars.\n"
 "Press 'OK' only after drawing the straight line.")
