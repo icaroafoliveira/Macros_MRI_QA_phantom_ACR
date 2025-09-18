@@ -21,7 +21,7 @@ def open_dicom_file(prompt):
 
 
 def fechar_result():
-    # só tenta se existir
+    # Try if exists
     if WindowManager.getWindow("Results") is not None:
         IJ.selectWindow("Results")
         IJ.run("Close")
@@ -59,7 +59,7 @@ IJ.run(imp, "Original Scale", "")
 IJ.run("In [+]", "")
 IJ.run("In [+]", "")
 
-# Ajuste manual de Window/Level (window=300, level=200)
+# Ajustment of Window/Level (window=300, level=200)
 window = 300
 level = 200
 min_display = level - window / 2  # 50
@@ -67,10 +67,10 @@ max_display = level + window / 2  # 350
 imp.setDisplayRange(min_display, max_display)
 imp.updateAndDraw()
 
-# Seleciona ferramenta de retângulo
+# Selects rectangle tool
 IJ.setTool("rectangle")
 
-# Caixa para ROI 1
+# ROI 1 Selection
 WaitForUserDialog("Select ROI 1 (Rectangle)").show()
 roi1 = imp.getRoi()
 if roi1 is None or roi1.getType() != Roi.RECTANGLE:
@@ -81,7 +81,7 @@ IJ.run("Measure")
 stats1 = imp.getStatistics(Measurements.MEAN)
 mean1 = stats1.mean
 
-# Caixa para ROI 2
+# ROI 2 Selection
 WaitForUserDialog("Select ROI 2 (Rectangle)").show()
 roi2 = imp.getRoi()
 if roi2 is None or roi2.getType() != Roi.RECTANGLE:
@@ -92,7 +92,7 @@ IJ.run("Measure")
 stats2 = imp.getStatistics(Measurements.MEAN)
 mean2 = stats2.mean
 
-# Ajuste de Window/Level baseado na média das ROIs
+# Ajust Window/Level based on medium ROIs pixels
 level = (mean1 + mean2) / 2
 window = 10
 min_display = (level - window) / 2
@@ -100,10 +100,10 @@ max_display = (level + window) / 2
 imp.setDisplayRange(min_display, max_display)
 imp.updateAndDraw()
 
-# Seleciona ferramenta de linha
+# Selects line tool
 IJ.setTool("line")
 
-# Caixa para ROI 3
+# ROI 3 Selection
 WaitForUserDialog("Select ROI 3 (Straight Line)").show()
 roi3 = imp.getRoi()
 if roi3 is None or roi3.getType() != Roi.LINE:
@@ -113,7 +113,7 @@ imp.setRoi(roi3)
 IJ.run("Measure")
 length3 = roi3.getLength()
 
-# Caixa para ROI 4
+# ROI 4 Selection
 WaitForUserDialog("Select ROI 4 (Straight Line)").show()
 roi4 = imp.getRoi()
 if roi4 is None or roi4.getType() != Roi.LINE:
@@ -123,13 +123,13 @@ imp.setRoi(roi4)
 IJ.run("Measure")
 length4 = roi4.getLength()
 
-# Realiza o cálculo solicitado
+# Calculate the result expected
 resultado = 0.2 * (length3 * length4) / (length3 + length4)
 
-# Mostra no log
+# shows log
 IJ.log("{:.3f}".format(resultado))
 
-# Adiciona o resultado na tabela de resultados
+# Add the result on the result table
 rt = ResultsTable.getResultsTable()
 rt.incrementCounter()
 rt.addValue("Final result", resultado)
@@ -139,6 +139,7 @@ WaitForUserDialog("Slice Thickness Accuracy Test completed, collect the results.
 imp.close()
 fechar_result()
 
+#End of the program
 IJ.run("Clear Results")
 IJ.log("---- End of the Slice Thickness Accuracy Test ----")
 IJ.log("")
