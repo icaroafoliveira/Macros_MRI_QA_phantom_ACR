@@ -76,4 +76,4 @@ Contributions are welcome. Please open issues for bugs or feature requests. Pull
 - corrigir bugs
 - revisão
 
-Created by Gabriel Branco, Victor H. Celoni, Pedro Cayres and Ícaro Oliveira
+Created by Gabriel Branco, Victor H. Celoni, Pedro H. Cayres and Ícaro Oliveira
