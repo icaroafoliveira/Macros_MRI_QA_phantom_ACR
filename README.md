@@ -77,4 +77,14 @@ Choose the plugins subfolder appropriate for your OS and Fiji installation.
 ## Contributing
 Contributions are welcome. Please open issues for bugs or feature requests. Pull requests should include a short description and, when appropriate, test data.
 
+<<<<<<< HEAD
 
+=======
+---
+
+# TODO
+- corrigir bugs
+- revisão
+
+Created by Gabriel Branco, Victor H. Celoni, Pedro H. Cayres and Ícaro Oliveira
+>>>>>>> origin/main
