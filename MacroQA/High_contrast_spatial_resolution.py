@@ -35,7 +35,8 @@ def open_dicom_file(prompt):
     imp.show()
     return imp
 
-# === Function to close the W&L window if open ===
+# === Function to close the Window/Level dialog if open ===
+# Searches for common W&L dialog titles and closes the window automatically.
 def fechar_wl():
     # Títulos mais comuns dessa janela
     candidatos = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
@@ -64,6 +65,8 @@ def fechar_wl():
     return False
 
 # === Function to print image type based on number of slices ===
+# Localizer: 1 slice | ACR T1w: 11 slices | ACR T2w: 22 slices
+
 def printImageType(imp):
     # Make sure that the image is the expected one
     # Localizer is a single-slice image
@@ -79,6 +82,7 @@ def printImageType(imp):
     else:
         IJ.log("Image Type: ACR T1w image.")
 
+# ---- Main Procedure ----
 IJ.log("---- High Contrast Spatial Resolution Test ----")
 WaitForUserDialog("Open the T1 image and perform the high-contrast resolution test.").show()
 imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
@@ -87,33 +91,29 @@ if imp is None:
     IJ.error("No image open.")
     raise SystemExit
 
-# Print image type
+# Identify image type by slice count
 printImageType(imp)
 
-# ===== Passo 1: Selecionar fatia =====
+# ===== Step 1: Select slice and initial adjustments =====
 imp.setSlice(1)
 IJ.log("Slice set to 1.")
 
+# Reset visualization to original scale and central W&L
 IJ.run(imp, "Original Scale", "")
 IJ.resetMinAndMax(imp)
 IJ.log("Window/Level adjusted to central values.")
 
-# Dar zoom como se fosse tecla "+"
-IJ.run("In [+]", "")
-IJ.run("In [+]", "")
-IJ.run("In [+]", "")
-#IJ.run("In [+]", "")
+# Apply zoom for detailed view
+IJ.run("In [+]", ""); IJ.run("In [+]", ""); IJ.run("In [+]", "")
 IJ.setTool("rectangle")
-# Ajustar a janela para caber no novo tamanho
 win = imp.getWindow()
 if win is not None:
-    win.pack()  # força redimensionamento da janela
-    
-# ===== Passo 2: Usuário seleciona a ROI =====
+    win.pack()
+
+# ===== Step 2: User selects ROI for zoom =====
 dlg = WaitForUserDialog(
-    "Select the area for zoom. \n"
-    "Draw a ROI in the region you want to enlarge and click OK..")
-    
+    "Select the area for zoom.\n"
+    "Draw a ROI in the region you want to enlarge and click OK.")
 dlg.show()
 IJ.log("Zoom adjusted to the selected ROI")
 
@@ -125,11 +125,10 @@ else:
     bounds = roi.getBounds()
     canvas = imp.getCanvas()
     if canvas is not None:
-        # Ajusta visualização para a ROI
+        # Center zoom on selected ROI
         canvas.setSourceRect(Rectangle(bounds.x, bounds.y, bounds.width, bounds.height))
         imp.updateAndDraw()
-        
-        # Dá zoom automático até caber a ROI
+        # Automatically zoom in until ROI fills the display
         while (canvas.getSrcRect().width > bounds.width or 
                canvas.getSrcRect().height > bounds.height):
             canvas.zoomIn(bounds.x + bounds.width // 2, bounds.y + bounds.height // 2)
@@ -138,21 +137,17 @@ else:
                 canvas.getSrcRect().height <= bounds.height):
                 break
 
-# ===== Passo 3: Ajuste automático do window/level =====
-l = 450.0
-w = 150.0
+# ===== Step 3: Automatic window/level adjustment =====
+l, w = 450.0, 150.0
 min_display = l - (w / 2)
 max_display = l + (w / 2)
 IJ.setMinAndMax(imp, min_display, max_display)
-
-# Abre a janela de W&L já configurada
 IJ.run("Brightness/Contrast...")
 IJ.run("Window/Level...")
 
-# ===== Passo 4: Ajuste manual =====
+# ===== Step 4: Manual window/level refinement =====
 from ij.gui import GenericDialog
 from java.awt import Font
-from ij import IJ
 
 gd = GenericDialog("Instructions")
 gd.addMessage("WARNING!", Font("SansSerif", Font.BOLD, 20))
@@ -163,15 +158,13 @@ if gd.wasCanceled():
     IJ.log("Cancelled.")
     raise SystemExit
 
-
-
-dlg = WaitForUserDialog( 
+dlg = WaitForUserDialog(
     "The three sets of dot patterns forming squares have different hole sizes.\n"
     "From left to right: 1.1 mm, 1.0 mm, and 0.9 mm.\n"
-    "In each set, the top square indicates horizontal resolution and the bottom one indicates vertical resolution."
-)
+    "Top square = horizontal resolution | Bottom square = vertical resolution.")
 dlg.show()
 
+# ===== Step 5: Collect user input for resolution limits =====
 CANCEL_SENTINEL = float(-2147483648.0)
 
 def get_number_or_nan(prompt, default=1.0):
@@ -181,15 +174,15 @@ def get_number_or_nan(prompt, default=1.0):
     return v
 
 valor_upper = get_number_or_nan("Enter the hole size value for the upper in mm:", 1.0)
-valor_lower = get_number_or_nan("Enter the hole size value for the lower in mm::", 1.0)
+valor_lower = get_number_or_nan("Enter the hole size value for the lower in mm:", 1.0)
 
-dlg = WaitForUserDialog( 
-	"High-Contrast Resolution Test completed, collect the results.\n")
+# ===== Step 6: Wrap-up and log results =====
+dlg = WaitForUserDialog("High-Contrast Resolution Test completed, collect the results.")
 dlg.show()
 imp.close()
 fechar_wl()
-
 IJ.run("Clear Results")
+
 IJ.log("Upper hole size [mm]: %s" % ("NaN" if (isinstance(valor_upper, float) and math.isnan(valor_upper)) else ("%.1f" % valor_upper)))
 IJ.log("Lower hole size [mm]: %s" % ("NaN" if (isinstance(valor_lower, float) and math.isnan(valor_lower)) else ("%.1f" % valor_lower)))
 IJ.log("---- End of the High Contrast Spatial Resolution Test ----")
