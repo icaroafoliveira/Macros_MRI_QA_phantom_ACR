@@ -1,3 +1,10 @@
+# Macro to perform the Image Intensity Uniformity (PIU) test of the ACR MRI phantom.
+# The script assumes that the user will select the ACR T1-weighted or T2-weighted image.
+# The user is prompted to draw a large circular ROI (~200 cm²) around the area of interest.
+# The user is then asked to adjust the window/level settings to identify low and high signal areas.
+# Finally, the user is asked to place small circular ROIs (~1 cm²) in the low and high signal areas to measure the mean intensities.
+# The script calculates and displays the Percent Image Uniformity (PIU) based on the measured values.
+
 from java.awt import Window, Font
 from ij.io import OpenDialog
 from ij import IJ, WindowManager
@@ -12,17 +19,17 @@ def area_to_radius_pixels(area_cm2, px_w_cm, px_h_cm):
     pixel_area_cm2 = px_w_cm * px_h_cm
     return math.sqrt(area_cm2 / (math.pi * pixel_area_cm2))
 
-def medir_roi_mean(imp, roi=None):
+def measure_roi_mean(imp, roi=None):
     if roi is not None:
         imp.setRoi(roi)
     stats = imp.getStatistics(Measurements.MEAN)
     return stats.mean
 
 # === Function to close the W&L window if open === 
-def fechar_wl():
+def close_wl():
     # Títulos mais comuns dessa janela
-    candidatos = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
-    for t in candidatos:
+    candidates = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
+    for t in candidates:
         w = WindowManager.getWindow(t) or WindowManager.getFrame(t)
         if w is not None:
             # fecha sem perguntar
@@ -61,23 +68,38 @@ def open_dicom_file(prompt):
 
 # === Function to print image type based on number of slices ===
 def printImageType(imp):
-    # Make sure that the image is the expected one
-    # Localizer is a single-slice image
-    # T1w has 11 slices
-    # T2w has 22 slices (2 echo times)
-     
-    slices = imp.getNSlices()     # z dimension
+    """Print the DICOM image type based on the TR (Repetition Time) value.
 
-    if slices < 11:
+    Typical TR values:
+    - Localizer: ~200 ms
+    - T1-weighted (T1w): ~500 ms
+    - T2-weighted (T2w): ~2000 ms
+    """
+
+    tr = None
+    info = imp.getInfoProperty()
+
+    if info is not None:
+        for line in info.split("\n"):
+            if line.startswith("0018,0080"):  # TR tag
+                try:
+                    tr = float(line.split(":")[1].strip())
+                except:
+                    tr = None
+                    IJ.log("Could not parse TR value.")
+
+    if tr is None:
+        IJ.log("TR value not found.")
+    elif tr < 300:
         IJ.log("Image Type: Localizer.")
-    elif slices > 11:
-        IJ.log("Image Type: ACR T2w image.")
-    else:
-        IJ.log("Image Type: ACR T1w image.")
+    elif tr >= 300 and tr < 1000:
+        IJ.log("Image Type: ACR T1-weighted image.")
+    elif tr >= 1000:
+        IJ.log("Image Type: ACR T2-weighted image.")
 
 IJ.log("---- Image Intensity Uniformity Test ----")
-WaitForUserDialog("Open the T1 image and perform the uniformity test").show()
-imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
+WaitForUserDialog("Open the T1 or T2 image and perform the uniformity test").show()
+imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 
 if imp is None:
     IJ.error("No image open.")
@@ -94,11 +116,26 @@ IJ.run("In [+]", "")
 
 # ===== Passo 1: ir para fatia 7 e centralizar window/level =====
 if imp.getNSlices() < 7:
-    IJ.error("The stack does not contain 7 slices (it has {}).".format(imp.getNSlices()))
-    raise SystemExit
-imp.setSlice(7)
-IJ.log("Slice set to 7.")
-
+    #IJ.error("The stack does not contain 7 slices (it has {}).".format(imp.getNSlices()))
+    #raise SystemExit
+    imp.setSlice(1)
+    IJ.log("Slice set to 1 (only {} slices in stack).".format(imp.getNSlices()))
+elif imp.getNSlices() == 11:
+    imp.setSlice(7)
+    IJ.log("Slice set to 7.")
+else:
+    dlg = WaitForUserDialog(
+        "This image has more than 11 slices, assuming it is a Multi-Echo T2-weighted image.\n"
+        "Select the slice with no visible structures (usually slice 14 or 18)")
+    dlg.show()
+    # choose slice
+    slice_num = IJ.getNumber("Enter the slice number to analyze (1 to %d):" % imp.getNSlices(), 14)
+    if slice_num is None or slice_num < 1 or slice_num > imp.getNSlices():
+        IJ.error("Invalid slice number.")
+        raise SystemExit
+    imp.setSlice(int(slice_num))
+    IJ.log("Slice set to %d." % int(slice_num))
+    
 # Ajusta window/level para valores centrais
 IJ.resetMinAndMax(imp)
 IJ.log("Window/Level adjusted to central values.")
@@ -161,7 +198,7 @@ if gd.wasCanceled():
     IJ.log("Cancelled.")
     raise SystemExit
 
-mean_ref = medir_roi_mean(imp)
+mean_ref = measure_roi_mean(imp)
 IJ.log("Initial mean (large ROI): {:.3f}".format(mean_ref))
 
 # ===== Passo 3: Ajuste manual para baixo sinal =====
@@ -190,7 +227,7 @@ dlg = WaitForUserDialog("Position small ROI - low signal",
     "Move the small ROI to the region of lowest signal (within the large ROI).\nPress 'OK' to continue.")
 dlg.show()
 
-low_signal = medir_roi_mean(imp)
+low_signal = measure_roi_mean(imp)
 IJ.log("Low signal mean: {:.3f}".format(low_signal))
 
 # ==== REPOSICIONAR A ROI GRANDE NO MESMO LOCAL PARA REFERÊNCIA ====
@@ -214,7 +251,7 @@ dlg = WaitForUserDialog("Position small ROI - high signal",
     "Move the small ROI to the region of highest signal (within the large ROI).\nPress 'OK' to continue.")
 dlg.show()
 rm.addRoi(roi_small_high)
-high_signal = medir_roi_mean(imp)
+high_signal = measure_roi_mean(imp)
 IJ.log("High signal mean: {:.3f}".format(high_signal))
 
 # ===== Passo 7: Cálculo do PIU =====
@@ -236,7 +273,7 @@ if gd.wasCanceled():
 
 dlg=WaitForUserDialog("Uniformity test completed, collect the results.")
 dlg.show()
-fechar_wl()
+close_wl()
 imp.close()
 
 IJ.run("Clear Results")
