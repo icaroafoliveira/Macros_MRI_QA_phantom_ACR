@@ -71,10 +71,9 @@ Installing `MacroQA` as a plugin integrates it into Fiji's menu system, maiking 
 Contributions are welcome. Please open issues for bugs or feature requests. Pull requests should include a short description and, when appropriate, test data.
 
 ---
+
 # TODO
-- tradução para inglês
-- escrever o passo a passo
 - corrigir bugs
+- revisão
 
-
-Created by Gabriel Branco, Victor H. Celoni and Ícaro Oliveira
+Created by Gabriel Branco, Victor H. Celoni, Pedro Cayres and Ícaro Oliveira
