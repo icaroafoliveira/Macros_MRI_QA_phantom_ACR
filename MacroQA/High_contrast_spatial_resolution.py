@@ -1,3 +1,15 @@
+# Macro to perform the High-Contrast Spatial Resolution test for MRI ACR phantom.
+# This script guides the user through visualization adjustments and ROI selection,
+# then records the smallest visible hole size in the resolution insert.
+
+# Steps performed:
+# 1. Open T1-weighted DICOM image and confirm the type by slice count.
+# 2. Navigate to the first slice and adjust visualization (scale, W&L).
+# 3. User selects ROI for zoom in the resolution insert.
+# 4. Automatic window/level adjustment followed by manual refinement.
+# 5. User inputs the smallest distinguishable hole size (upper and lower patterns).
+# 6. Results are logged for reporting.
+
 from java.awt import Rectangle
 from ij import IJ, WindowManager
 from ij.gui import Roi, WaitForUserDialog
@@ -10,6 +22,7 @@ import ij.io
 import math
 
 # === Function to open DICOM files ===
+# Prompts the user to select a DICOM image and opens it.
 def open_dicom_file(prompt):
     od = ij.io.OpenDialog(prompt, None)
     path = od.getPath()
