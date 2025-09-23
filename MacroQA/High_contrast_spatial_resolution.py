@@ -38,21 +38,20 @@ def open_dicom_file(prompt):
 # === Function to close the Window/Level dialog if open ===
 # Searches for common W&L dialog titles and closes the window automatically.
 def fechar_wl():
-    # Títulos mais comuns dessa janela
-    candidatos = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
-    for t in candidatos:
+    # Common titles for the window
+    candidates = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
+    for t in candidates:
         w = WindowManager.getWindow(t) or WindowManager.getFrame(t)
         if w is not None:
-            # fecha sem perguntar
             try:
-                w.dispose()   # fecha a janela
+                w.dispose()   # Closes the window
             except:
                 try:
                     w.setVisible(False)
                 except:
                     pass
             return True
-    # fallback: varre janelas não-imagem e fecha se bater por nome
+    # fallback: searches over non-image windows and close them if the name checks out with the list
     wins = WindowManager.getNonImageWindows() or []
     for w in wins:
         try:
