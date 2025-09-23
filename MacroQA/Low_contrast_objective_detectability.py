@@ -1,3 +1,8 @@
+# Macro to perform the Low Contrast Objective Detectability Test on an ACR phantom MRI scan.
+# The user must manually count the number of visible spheres in specific slices for both T1-weighted and T2-weighted images.
+# The script guides the user through the process, automatically adjusting the display window/level for better visibility and logging the results.
+
+# Required libraries
 from ij import IJ, WindowManager
 from ij.io import OpenDialog
 from ij.measure import ResultsTable
@@ -10,14 +15,17 @@ from ij.gui import GenericDialog
 from java.awt import Font
 import math
 
-#def ajustar_window_level(imp, level, window):
-#    min_display = level - window / 2
-#    max_display = level + window / 2
-#    imp.setDisplayRange(min_display, max_display)
-#    imp.updateAndDraw()
 
-# === Function to calculate optimal window/level based on histogram analysis ===
+# --- Helper Functions ---
+
+# Function to calculate an optimal window/level based on histogram analysis
+# This function aims to automatically set a display range that highlights the low-contrast spheres.
 def calcular_window_level(imp):
+    """
+    Calculates an optimal window and level for an image based on histogram analysis.
+    This function analyzes the histogram to find a suitable display range,
+    especially useful for low-contrast images.
+    """
     stats = imp.getStatistics()
     hist = stats.histogram
     if hist is None:
@@ -30,7 +38,7 @@ def calcular_window_level(imp):
     x_vals = [i + hist_min for i in range(len(hist))]
     y_vals = hist
 
-    # Cálculo da mediana real
+    # Calculation of the true median
     total_pixels = sum(y_vals)
     cumulative = 0
     median_value = x_vals[-1]
@@ -41,7 +49,7 @@ def calcular_window_level(imp):
             median_value = x_vals[i]
             break
 
-    # Filtrar dados acima da mediana com contagens significativas
+    # Filter data above the median with significant counts
     peak = max(y_vals)
     threshold = peak * 0.02
 
@@ -61,23 +69,25 @@ def calcular_window_level(imp):
 
     return level, window
 
-# === Function to close any open Brightness/Contrast or Window/Level dialogs ===
+# Function to close any open Brightness/Contrast or Window/Level dialogs
+# This ensures that the macro operates cleanly without user intervention on these windows.
 def fechar_wl():
-    # Títulos mais comuns dessa janela
+    """Closes any open 'Brightness/Contrast' or 'Window/Level' dialogs."""
+    # Common titles for this window
     candidatos = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
     for t in candidatos:
         w = WindowManager.getWindow(t) or WindowManager.getFrame(t)
         if w is not None:
-            # fecha sem perguntar
+            # Closes without asking
             try:
-                w.dispose()   # fecha a janela
+                w.dispose()  # Closes the window
             except:
                 try:
                     w.setVisible(False)
                 except:
                     pass
             return True
-    # fallback: varre janelas não-imagem e fecha se bater por nome
+    # Fallback: scan non-image windows and close if the name matches
     wins = WindowManager.getNonImageWindows() or []
     for w in wins:
         try:
@@ -97,8 +107,12 @@ def get_number_or_nan(prompt, default=1.0):
         return float('nan')
     return v
 
-# === funcao para abrir DICOM file ===
+# Function to open a DICOM file selected by the user
 def open_dicom_file(prompt):
+    """
+    Opens a DICOM file selected via a dialog box.
+    Returns the ImagePlus object or None if the operation fails.
+    """
     od = OpenDialog(prompt, None)
     path = od.getPath()
     if path is None:
@@ -110,14 +124,19 @@ def open_dicom_file(prompt):
     imp.show()
     return imp
 
-# === Function to print image type based on number of slices ===
+# Function to print the image type based on the number of slices
+# This helps confirm that the user has selected the correct image sequence.
 def printImageType(imp):
+    """
+    Checks the number of slices and prints the corresponding image type
+    (Localizer, T1w, or T2w) to the log.
+    """
     # Make sure that the image is the expected one
     # Localizer is a single-slice image
     # T1w has 11 slices
     # T2w has 22 slices (2 echo times)
-     
-    slices = imp.getNSlices()     # z dimension
+      
+    slices = imp.getNSlices()      # z dimension
 
     if slices < 11:
         IJ.log("Image Type: Localizer.")
@@ -126,68 +145,66 @@ def printImageType(imp):
     else:
         IJ.log("Image Type: ACR T1w image.")
 
+# --- Main Script Execution ---
+
 IJ.log("---- Start of Low Contrast Objective Detectability Test ----")    
 WaitForUserDialog("Click OK to select the T1 image and perform the count of low-contrast spheres.").show()
 
+# Open the T1-weighted image
 imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
 
-# Verifica se a imagem está aberta
+# Check if the image was successfully opened
 if imp is None:
     IJ.error("No image open.")
     raise SystemExit
 
-# Print image type
+# Print image type for confirmation
 printImageType(imp)
 
-# --- Primeira imagem ---
+# --- Process T1-weighted image ---
 
-# Ajuste de Window/Level: window = 850, level = 1900
+# Zoom in for better visualization
 IJ.run("In [+]","")
 IJ.run("In [+]","")
 IJ.run("Brightness/Contrast...")
 IJ.run("Window/Level...")
 
-# Vai para fatia 8
+# Go to slice 8
 imp.setSlice(8)
 level, window = calcular_window_level(imp)
 
 if level is not None:
-    # Ajuste manual para imagem T1
+    # Manual adjustments for the T1 image to better highlight spheres
     level += 1480
     window *= 0.8
 
-    # Aplicar na imagem
+    # Apply the display range to the image
     min_display = level - window / 2.0
     max_display = level + window / 2.0
     imp.setDisplayRange(min_display, max_display)
     imp.updateAndDraw()
-#print("Display range aplicado:")
-#print("Min:", imp.getDisplayRangeMin())
-#print("Max:", imp.getDisplayRangeMax())
+
+# Prompt user to perform the analysis for each slice
 WaitForUserDialog("Slice 8 - Perform the analysis and click OK").show()
 fatia8 = get_number_or_nan("Enter the number of visible spheres in slice 8:", 1.0)
 
-# Vai para fatia 9
+# Repeat the process for slices 9, 10, and 11
 imp.setSlice(9)
 WaitForUserDialog("Slice 9 - Perform the analysis and click OK").show()
 fatia9 = get_number_or_nan("Enter the number of visible spheres in slice 9:", 1.0)
 
-# Vai para fatia 10
 imp.setSlice(10)
 WaitForUserDialog("Slice 10 - Perform the analysis and click OK").show()
 fatia10 = get_number_or_nan("Enter the number of visible spheres in slice 10:", 1.0)
 
-# Vai para fatia 11
-#ajustar_window_level(imp)
 imp.setSlice(11)
 level, window = calcular_window_level(imp)
 
 if level is not None:
-    # Ajuste manual para imagem T1
+    # Manual adjustments for T1 image, different for the last slice
     level += 1380
     window *= 0.85
 
-    # Aplicar na imagem
     min_display = level - window / 2.0
     max_display = level + window / 2.0
     imp.setDisplayRange(min_display, max_display)
@@ -199,69 +216,62 @@ if level is not None:
 WaitForUserDialog("Slice 11 - Perform the analysis and click OK").show()
 fatia11 = get_number_or_nan("Enter the number of visible spheres in slice 11:", 1.0)
 imp.close()
-# --- Solicita nova imagem ---
+
+# --- Process T2-weighted image ---
 
 WaitForUserDialog("Open the T2-weighted image.").show()
 t2w = open_dicom_file("Click OK to select the T2-weighted image.")
 if t2w is None:
     exit()
-# Obtém a nova imagem ativa
+
+# Get the newly opened image
 imp2 = IJ.getImage()
 if imp2 is None or imp2 == imp:
     IJ.error("No new image opened or the same image was reused.")
     raise SystemExit
 
-# Print image type
+# Print image type for confirmation
 printImageType(imp2)
 
+# Zoom in and reset display settings for the new image
 IJ.run("In [+]","")
 IJ.run("In [+]","")
-# Reset de Window/Level
 IJ.run("Window/Level...")
 
-# Vai para fatia 16 da nova imagem
+# Go to slice 16
 imp2.setSlice(16)
-#imp2.updateAndDraw()
-# Novo ajuste: window = 780, level = -1650
 level, window = calcular_window_level(imp2)
 
 if level is not None:
-    # Ajuste manual para imagem T2 (valores diferentes!)
+    # Manual adjustments for the T2 image (different values!)
     level += 1100
     window *= 1.1
 
-    # Aplicar na imagem
     min_display = level - window / 2.0
     max_display = level + window / 2.0
     imp2.setDisplayRange(min_display, max_display)
     imp2.updateAndDraw()
-#print("Display range aplicado:")
-#print("Min:", imp2.getDisplayRangeMin())
-#print("Max:", imp2.getDisplayRangeMax())
+
+# Prompt user for slices 16, 18, 20, and 22
 WaitForUserDialog("Slice 16 - Perform the analysis and click OK").show()
 fatia16 = get_number_or_nan("Enter the number of visible spheres in slice 16:", 1.0)
 
-# Vai para fatia 18 da nova imagem
 imp2.setSlice(18)
 WaitForUserDialog("Slice 18 - Perform the analysis and click OK").show()
 fatia18 = get_number_or_nan("Enter the number of visible spheres in slice 18:", 1.0)
 
-# Vai para fatia 20 da nova imagem
 imp2.setSlice(20)
 WaitForUserDialog("Slice 20 - Perform the analysis and click OK").show()
 fatia20 = get_number_or_nan("Enter the number of visible spheres in slice 20:", 1.0)
 
-# Vai para fatia 22 da nova imagem
 imp2.setSlice(22)
-#ajustar_window_level(imp2)
 level, window = calcular_window_level(imp2)
 
 if level is not None:
-    # Ajuste manual para imagem T2 (valores diferentes!)
+    # Manual adjustments for the T2 image, different for the last slice
     level += 1000
     window *= 1.1
 
-    # Aplicar na imagem
     min_display = level - window / 2.0
     max_display = level + window / 2.0
     imp2.setDisplayRange(min_display, max_display)
@@ -276,6 +286,8 @@ esferas_T1 = fatia8 + fatia9 + fatia10 + fatia11
 esferas_T2 = fatia16 + fatia18 + fatia20 + fatia22
 imp2.close()
 fechar_wl()
+
+# --- Display Final Results ---
 
 WaitForUserDialog("Low Contrast Detail Test completed, collect the results.").show()
 
