@@ -18,31 +18,41 @@ from ij.plugin.frame import RoiManager
 from ij.process import ImageStatistics
 from ij.measure import ResultsTable
 from ij.io import OpenDialog
+from ij.gui import GenericDialog
+from java.awt import Font
 import ij.io
 import math
+
+# === All functions used in the script are defined here ===
 
 # === Function to open DICOM files ===
 # Prompts the user to select a DICOM image and opens it.
 def open_dicom_file(prompt):
+    """Opens a file chooser dialog to select a DICOM file.
+    
+    Returns the ImagePlus object or None if the operation is canceled or fails.
+    """
     od = ij.io.OpenDialog(prompt, None)
     path = od.getPath()
     if path is None:
         return None
     imp = IJ.openImage(path)
     if imp is None:
-        IJ.error("Fail to open the image.")
+        IJ.error("Failed to open the image.")
         return None
     imp.show()
     return imp
 
-# === Function to close the Window/Level dialog if open ===
-# Searches for common W&L dialog titles and closes the window automatically.
-def fechar_wl():
-    # Common titles for the window
+# === Function to close the W&L window if open ===
+def close_wl():
+    """
+    Closes any open Brightness/Contrast or Window/Level dialogs.
+    """
     candidates = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
     for t in candidates:
         w = WindowManager.getWindow(t) or WindowManager.getFrame(t)
         if w is not None:
+            # closing without prompt
             try:
                 w.dispose()   # Closes the window
             except:
@@ -51,7 +61,7 @@ def fechar_wl():
                 except:
                     pass
             return True
-    # fallback: searches over non-image windows and close them if the name checks out with the list
+    # fallback: scan non-image windows and close if the title matches
     wins = WindowManager.getNonImageWindows() or []
     for w in wins:
         try:
@@ -67,24 +77,60 @@ def fechar_wl():
 # Localizer: 1 slice | ACR T1w: 11 slices | ACR T2w: 22 slices
 
 def printImageType(imp):
-    # Make sure that the image is the expected one
-    # Localizer is a single-slice image
-    # T1w has 11 slices
-    # T2w has 22 slices (2 echo times)
-     
-    slices = imp.getNSlices()     # z dimension
+    """Print the DICOM image type based on the TR (Repetition Time) value.
 
-    if slices < 11:
+    Typical TR values:
+    - Localizer: ~200 ms
+    - T1-weighted (T1w): ~500 ms
+    - T2-weighted (T2w): ~2000 ms
+    """
+
+    tr = None
+    info = imp.getInfoProperty()
+
+    if info is not None:
+        for line in info.split("\n"):
+            if line.startswith("0018,0080"):  # TR tag
+                try:
+                    tr = float(line.split(":")[1].strip())
+                except:
+                    tr = None
+                    IJ.log("Could not parse TR value.")
+
+    if tr is None:
+        IJ.log("TR value not found.")
+    elif tr < 300:
         IJ.log("Image Type: Localizer.")
-    elif slices > 11:
-        IJ.log("Image Type: ACR T2w image.")
-    else:
-        IJ.log("Image Type: ACR T1w image.")
+    elif tr >= 300 and tr < 1000:
+        IJ.log("Image Type: ACR T1-weighted image.")
+    elif tr >= 1000:
+        IJ.log("Image Type: ACR T2-weighted image.")
 
-# ---- Main Procedure ----
+def get_number_or_nan(prompt, default=1.0):
+    """Prompt the user for a numeric value and return NaN on cancel.
+
+    ImageJ returns a sentinel value when the user cancels number dialogs. This
+    wrapper calls `IJ.getNumber` with `prompt` and `default`, and converts the
+    sentinel or any NaN-like result into a Python `float('nan')` so later code
+    can handle missing values cleanly.
+
+    Args:
+        prompt (str): Message shown to the user.
+        default (float): Default numeric value shown in the dialog.
+
+    Returns:
+        float: The entered number, or `float('nan')` if the dialog was canceled
+        or an invalid number was provided.
+    """
+    v = IJ.getNumber(prompt, default)
+    if v == CANCEL_SENTINEL or (isinstance(v, float) and math.isnan(v)):
+        return float('nan')
+    return v
+
+# === MAIN SCRIPT ===
 IJ.log("---- High Contrast Spatial Resolution Test ----")
-WaitForUserDialog("Open the T1 image and perform the high-contrast resolution test.").show()
-imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
+WaitForUserDialog("Open the T1 or T2 image and perform the high-contrast resolution test.").show()
+imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 
 if imp is None:
     IJ.error("No image open.")
@@ -93,23 +139,39 @@ if imp is None:
 # Identify image type by slice count
 printImageType(imp)
 
-# ===== Step 1: Select slice and initial adjustments =====
-imp.setSlice(1)
-IJ.log("Slice set to 1.")
-
-# Reset visualization to original scale and central W&L
+# ===== Step 1: Select slice =====
+if imp.getNSlices() > 11:
+    dlg = WaitForUserDialog(
+        "This image has more than 11 slices, assuming it is a Multi-Echo T2-weighted image.\n"
+        "Select the slice that shows the resolution patterns (usually slice 2 or 12).")
+    dlg.show()
+    # choose slice
+    slice_num = IJ.getNumber("Enter the slice number to analyze (1 to %d):" % imp.getNSlices(), 12)
+    if slice_num is None or slice_num < 1 or slice_num > imp.getNSlices():
+        IJ.error("Invalid slice number.")
+        raise SystemExit
+    imp.setSlice(int(slice_num))
+    IJ.log("Slice set to %d." % int(slice_num))
+else:
+    imp.setSlice(1)
+    IJ.log("Slice set to 1.")
+    
 IJ.run(imp, "Original Scale", "")
 IJ.resetMinAndMax(imp)
 IJ.log("Window/Level adjusted to central values.")
 
-# Apply zoom for detailed view
-IJ.run("In [+]", ""); IJ.run("In [+]", ""); IJ.run("In [+]", "")
+# Zoom in a few times (equivalent to pressing the "+" key)
+IJ.run("In [+]", "")
+IJ.run("In [+]", "")
+IJ.run("In [+]", "")
+#IJ.run("In [+]", "")
 IJ.setTool("rectangle")
+# Adjust the window to fit the new zoom level
 win = imp.getWindow()
 if win is not None:
-    win.pack()
-
-# ===== Step 2: User selects ROI for zoom =====
+    win.pack()  # force the window to resize
+    
+# ===== Step 2: user selects the ROI =====
 dlg = WaitForUserDialog(
     "Select the area for zoom.\n"
     "Draw a ROI in the region you want to enlarge and click OK.")
@@ -124,10 +186,11 @@ else:
     bounds = roi.getBounds()
     canvas = imp.getCanvas()
     if canvas is not None:
-        # Center zoom on selected ROI
+        # Set the canvas source rectangle to the ROI bounds (focus view on ROI)
         canvas.setSourceRect(Rectangle(bounds.x, bounds.y, bounds.width, bounds.height))
         imp.updateAndDraw()
-        # Automatically zoom in until ROI fills the display
+        
+        # Automatically zoom in until the ROI fills the source view
         while (canvas.getSrcRect().width > bounds.width or 
                canvas.getSrcRect().height > bounds.height):
             canvas.zoomIn(bounds.x + bounds.width // 2, bounds.y + bounds.height // 2)
@@ -141,16 +204,17 @@ l, w = 450.0, 150.0
 min_display = l - (w / 2)
 max_display = l + (w / 2)
 IJ.setMinAndMax(imp, min_display, max_display)
+
+# Open the Brightness/Contrast and Window/Level dialogs with the
+# previously-set min/max so the user can fine-tune visually
 IJ.run("Brightness/Contrast...")
 IJ.run("Window/Level...")
 
-# ===== Step 4: Manual window/level refinement =====
-from ij.gui import GenericDialog
-from java.awt import Font
+# ===== Step 4: Manual adjustment =====
 
 gd = GenericDialog("Instructions")
 gd.addMessage("WARNING!", Font("SansSerif", Font.BOLD, 20))
-gd.addMessage("Adjust level and window in the next step until the holes in the resolution insert are displayed individually.", Font("SansSerif", Font.ITALIC, 12))
+gd.addMessage("Adjust level and window in the next step until the holes in the resolution insert are distinguishable from one another.", Font("SansSerif", Font.ITALIC, 12))
 gd.addMessage("Press 'OK' to continue.", Font("SansSerif", Font.ITALIC, 12))
 gd.showDialog()
 if gd.wasCanceled():
@@ -166,23 +230,18 @@ dlg.show()
 # ===== Step 5: Collect user input for resolution limits =====
 CANCEL_SENTINEL = float(-2147483648.0)
 
-def get_number_or_nan(prompt, default=1.0):
-    v = IJ.getNumber(prompt, default)
-    if v == CANCEL_SENTINEL or (isinstance(v, float) and math.isnan(v)):
-        return float('nan')
-    return v
-
-valor_upper = get_number_or_nan("Enter the hole size value for the upper in mm:", 1.0)
-valor_lower = get_number_or_nan("Enter the hole size value for the lower in mm:", 1.0)
+upper_value = get_number_or_nan("Enter the hole size value for the upper in mm:", 1.0)
+lower_value = get_number_or_nan("Enter the hole size value for the lower in mm:", 1.0)
 
 # ===== Step 6: Wrap-up and log results =====
 dlg = WaitForUserDialog("High-Contrast Resolution Test completed, collect the results.")
 dlg.show()
 imp.close()
-fechar_wl()
+close_wl()
+
 IJ.run("Clear Results")
 
-IJ.log("Upper hole size [mm]: %s" % ("NaN" if (isinstance(valor_upper, float) and math.isnan(valor_upper)) else ("%.1f" % valor_upper)))
-IJ.log("Lower hole size [mm]: %s" % ("NaN" if (isinstance(valor_lower, float) and math.isnan(valor_lower)) else ("%.1f" % valor_lower)))
+IJ.log("Upper hole size [mm]: %s" % ("NaN" if (isinstance(upper_value, float) and math.isnan(upper_value)) else ("%.1f" % upper_value)))
+IJ.log("Lower hole size [mm]: %s" % ("NaN" if (isinstance(lower_value, float) and math.isnan(lower_value)) else ("%.1f" % lower_value)))
 IJ.log("---- End of the High Contrast Spatial Resolution Test ----")
 IJ.log("")

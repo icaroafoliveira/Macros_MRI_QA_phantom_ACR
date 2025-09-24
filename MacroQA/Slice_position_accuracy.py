@@ -9,17 +9,18 @@ from ij.gui import WaitForUserDialog, Roi, Line
 from ij.io import OpenDialog
 from java.lang import Math
 from ij.measure import ResultsTable
+from ij.process import ImageStatistics
 import math
 
-IJ.log("---- Slice Position Accuracy Test ----")
 
-# --- Helper Functions ---
+# === All functions used in the script are defined here ===
 
-def fechar_wl():
+# === Function to close the W&L window if open ===
+def close_wl():
     """Closes any open 'Brightness/Contrast' or 'Window/Level' dialogs."""
     # brightness/contrast window management
-    candidatos = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
-    for t in candidatos:
+    candidates = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
+    for t in candidates:
         w = WindowManager.getWindow(t) or WindowManager.getFrame(t)
         if w is not None:
             # close without asking
@@ -43,13 +44,15 @@ def fechar_wl():
             return True
     return False
 
-def fechar_result():
+# === Function to close the Results window if open ===
+def close_result():
     """Closes the 'Results' window if it is open."""
     # Get Window only if it exists
     if WindowManager.getWindow("Results") is not None:
         IJ.selectWindow("Results")
         IJ.run("Close")
 
+# === Function to zoom to a rectangle in pixels ===
 def zoom_to_rect_pixels(x, y, w, h, set_line_tool=True, clear_roi_after=True):
     """
     Zooms in on a specified rectangular area in pixels.
@@ -64,6 +67,7 @@ def zoom_to_rect_pixels(x, y, w, h, set_line_tool=True, clear_roi_after=True):
     if clear_roi_after:
         imp.killRoi()
 
+# === Function to get the measurement from the user-drawn line ===
 def get_measurement(imp, instruction, cutoff_px=127):
     """
     Prompts the user to draw a line and measures its length.
@@ -116,6 +120,7 @@ def get_measurement(imp, instruction, cutoff_px=127):
     #IJ.log("X_centroide(px)=%.3f  cutoff=%d  comprimento=%.3f" % (x_px, cutoff_px, signed_length))
     return signed_length
 
+# === Function to open a DICOM file via dialog ===
 def open_dicom_file(prompt):
     """
     Opens a DICOM file selected via a dialog box.
@@ -131,37 +136,62 @@ def open_dicom_file(prompt):
         return None
     imp.show()
     return imp
-    
-def ajustar_window_level(imp, level, window):
+
+# === Function to adjust window/level ===
+# def adjust_window_level(imp, level, window):
+#     """Sets the display range (window/level) for the image."""
+#     min_display = level - window / 2
+#     max_display = level + window / 2
+#     imp.setDisplayRange(min_display, max_display)
+#     imp.updateAndDraw()
+
+def adjust_window_level(imp, level, window):
     """Sets the display range (window/level) for the image."""
-    min_display = level - window / 2
-    max_display = level + window / 2
+    stats = imp.getProcessor().getStatistics()
+    img_min, img_max = stats.min, stats.max
+
+    min_display = max(img_min, level - window / 2)
+    max_display = min(img_max, level + window / 2)
+
     imp.setDisplayRange(min_display, max_display)
     imp.updateAndDraw()
-
+    
+# === Function to print image type based on TR value ===
 def printImageType(imp):
-    """
-    Checks the number of slices and prints the corresponding image type
-    (Localizer, T1w, or T2w) to the log.
-    """
-    # Make sure that the image is the expected one
-    # Localizer is a single-slice image
-    # T1w has 11 slices
-    # T2w has 22 slices (2 echo times)
-      
-    slices = imp.getNSlices()      # z dimension
+    """Print the DICOM image type based on the TR (Repetition Time) value.
 
-    if slices < 11:
+    Typical TR values:
+    - Localizer: ~200 ms
+    - T1-weighted (T1w): ~500 ms
+    - T2-weighted (T2w): ~2000 ms
+    """
+
+    tr = None
+    info = imp.getInfoProperty()
+
+    if info is not None:
+        for line in info.split("\n"):
+            if line.startswith("0018,0080"):  # TR tag
+                try:
+                    tr = float(line.split(":")[1].strip())
+                except:
+                    tr = None
+                    IJ.log("Could not parse TR value.")
+
+    if tr is None:
+        IJ.log("TR value not found.")
+    elif tr < 300:
         IJ.log("Image Type: Localizer.")
-    elif slices > 11:
-        IJ.log("Image Type: ACR T2w image.")
-    else:
-        IJ.log("Image Type: ACR T1w image.")
+    elif tr >= 300 and tr < 1000:
+        IJ.log("Image Type: ACR T1-weighted image.")
+    elif tr >= 1000:
+        IJ.log("Image Type: ACR T2-weighted image.")
+
 
 # --- Main Script Execution ---
-
-WaitForUserDialog("Open the T1 image to proceed with the test.").show()
-imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
+IJ.log("---- Slice Position Accuracy Test ----")
+WaitForUserDialog("Open the T1 or T2 image to proceed with the test.").show()
+imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 
 # Verify if image is opened
 if imp is None:
@@ -172,7 +202,21 @@ printImageType(imp)
 
 # --- Process First Slice (Slice 1) ---
 # Go to first slice
-imp.setSlice(1)
+if imp.getNSlices() <= 11:
+    imp.setSlice(1)
+elif imp.getNSlices() > 11:
+    dlg = WaitForUserDialog(
+        "This image has more than 11 slices, assuming it is a Multi-Echo T2-weighted image.\n"
+        "Select the slice that shows the bars (usually slice 2 or 12).")
+    dlg.show()
+    # choose slice
+    slice_num = IJ.getNumber("Enter the slice number to analyze (1 to %d):" % imp.getNSlices(), 1)
+    if slice_num is None or slice_num < 1 or slice_num > imp.getNSlices():
+        IJ.error("Invalid slice number.")
+        raise SystemExit
+    imp.setSlice(int(slice_num))
+    IJ.log("Slice set to %d." % int(slice_num))
+    
 
 IJ.run(imp, "Original Scale", "")
 # Adjust window/level to central values
@@ -183,7 +227,7 @@ IJ.run("In [+]", "")
 IJ.run("In [+]", "")
 
 # Adjust Window/Level: window = 10, level = 1000
-ajustar_window_level(imp, level=1000, window=10)
+adjust_window_level(imp, level=1000, window=10)
 IJ.run("Brightness/Contrast...")
 IJ.run("Window/Level...")
 
@@ -198,15 +242,38 @@ medida1 = get_measurement(imp, "Slice 1 - Draw the vertical straight line to get
 "Press 'OK' only after drawing the straight line.")
 
 # --- Process Eleventh Slice (Slice 11) ---
-# Go to 11th slice
-imp.setSlice(11)
+
+if imp.getNSlices() < 11:
+    IJ.error("Additional measurements require slice 11, but the selected image has only {} slices.".format(imp.getNSlices()))
+    imp.close()
+    imp = open_dicom_file("Select ACR T1-weighted DICOM image (slice 11)")
+    if imp is None:
+        raise SystemExit
+    IJ.log("New image opened.")
+elif imp.getNSlices() == 11:
+    IJ.log("Image has exactly 11 slices; proceeding to slice 11.")
+    # Go to 11th slice
+    imp.setSlice(11)
+else:
+    dlg = WaitForUserDialog(
+        "This image has more than 11 slices, assuming it is a Multi-Echo T2-weighted image.\n"
+        "Select the slice that shows the bars (usually slice 11 or 22).")
+    dlg.show()
+    # choose slice
+    slice_num = IJ.getNumber("Enter the slice number to analyze (1 to %d):" % imp.getNSlices(), 22)
+    if slice_num is None or slice_num < 1 or slice_num > imp.getNSlices():
+        IJ.error("Invalid slice number.")
+        raise SystemExit
+    imp.setSlice(int(slice_num))
+    IJ.log("Slice set to %d." % int(slice_num))
+
 medida2 = get_measurement(imp, "Slice 11 - Draw the vertical straight line to get the height difference between the bars.\n"
 "Press 'OK' only after drawing the straight line.")
 
 # --- Finalization and Results ---
 imp.close()
-fechar_wl()
-fechar_result()
+close_wl()
+close_result()
 
 WaitForUserDialog("Slice Position Accuracy Test finished. Collect the results.\n").show()
 

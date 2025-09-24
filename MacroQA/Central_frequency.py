@@ -7,6 +7,42 @@ from ij import IJ
 from ij.io import OpenDialog
 from ij.gui import WaitForUserDialog
 
+# === All functions used in the script are defined here ===
+# === Function to print the image type based on TR value ===
+def printImageType(imp):
+    """
+    Print the type of DICOM image based on the TR value.
+
+    Determines image type based on TR (Repetition Time)
+    T1w: TR ~ 500 ms
+    T2w: TR ~ 2000 ms
+    Localizer: TR ~ 200 ms
+    """
+
+    tr = None
+    info = imp.getInfoProperty()
+
+    if info is not None:
+        for line in info.split("\n"):
+            if line.startswith("0018,0080"):  # TR tag
+                try:
+                    tr = float(line.split(":")[1].strip())
+                except:
+                    tr = None
+                    IJ.log("Could not parse TR value.")
+
+    if tr is None:
+        IJ.log("TR value not found.")
+    elif tr < 300:
+        IJ.log("Image Type: Localizer.")
+    elif tr >= 300 and tr < 1000:
+        IJ.log("Image Type: ACR T1-weighted image.")
+    elif tr >= 1000:
+        IJ.log("Image Type: ACR T2-weighted image.")
+
+
+# === Start of the main script ===
+
 # call open dialog to get the DICOM path
 open_dia_file = OpenDialog("Open T1w image", None)
 
@@ -27,20 +63,7 @@ info = imp.getInfoProperty()
 IJ.log("---- Central Frequency Test ----")
 
 # Make sure that the image is the expected one
-# Localizer is a single-slice image
-# T1w has 11 slices
-# T2w has 22 slices (2 echo times)
-slices = imp.getNSlices()     # z dimension
-
-if slices < 11:
-	IJ.log("Image Type: Localizer.")
-	IJ.log("You should repeat the measurement with ACR T1w image.")
-elif slices > 11:
-	IJ.log("Image Type: ACR T2w image.")
-	IJ.log("You should repeat the measurement with ACR T1w image.")
-else:
-	IJ.log("Image Type: ACR T1w image.")
-			
+printImageType(imp)
 	
 # Imaging Frequency tag is (0018, 0084)
 # We need to parse the header string to find this value

@@ -15,29 +15,40 @@ from ij.measure import Measurements
 from ij.plugin.frame import RoiManager
 from java.awt import Window, Font
 
-IJ.log("---- Signal to Noise Ratio Test ----")
+# === All functions used in the script are defined here ===
 
-# --- Helper Functions ---
-
+# === Function to print image type based on TR value ===
 def printImageType(imp):
-    """
-    Checks the number of slices and prints the corresponding image type
-    (Localizer, T1w, or T2w) to the log.
-    """
-    # Make sure that the image is the expected one
-    # Localizer is a single-slice image
-    # T1w has 11 slices
-    # T2w has 22 slices (2 echo times)
-      
-    slices = imp.getNSlices()      # z dimension
+    """Print the DICOM image type based on the TR (Repetition Time) value.
 
-    if slices < 11:
+    Typical TR values:
+    - Localizer: ~200 ms
+    - T1-weighted (T1w): ~500 ms
+    - T2-weighted (T2w): ~2000 ms
+    """
+
+    tr = None
+    info = imp.getInfoProperty()
+
+    if info is not None:
+        for line in info.split("\n"):
+            if line.startswith("0018,0080"):  # TR tag
+                try:
+                    tr = float(line.split(":")[1].strip())
+                except:
+                    tr = None
+                    IJ.log("Could not parse TR value.")
+
+    if tr is None:
+        IJ.log("TR value not found.")
+    elif tr < 300:
         IJ.log("Image Type: Localizer.")
-    elif slices > 11:
-        IJ.log("Image Type: ACR T2w image.")
-    else:
-        IJ.log("Image Type: ACR T1w image.")
-    
+    elif tr >= 300 and tr < 1000:
+        IJ.log("Image Type: ACR T1-weighted image.")
+    elif tr >= 1000:
+        IJ.log("Image Type: ACR T2-weighted image.")
+
+# === Function to open DICOM files ===
 def open_dicom_file(prompt):
     """
     Opens a DICOM file selected via a dialog box.
@@ -54,19 +65,20 @@ def open_dicom_file(prompt):
     imp.show()
     return imp
 
+# === Function to convert area in cm² to radius in pixels ===
 def area_to_radius_pixels(area_cm2, px_w_cm, px_h_cm):
     """Converts a given area in cm^2 to a circle's radius in pixels."""
     pixel_area_cm2 = px_w_cm * px_h_cm
     return math.sqrt(area_cm2 / (math.pi * pixel_area_cm2))
 
-def medir_roi_mean(imp, roi=None):
+def measure_roi_mean(imp, roi=None):
     """Measures the mean pixel value within a given ROI."""
     if roi is not None:
         imp.setRoi(roi)
     stats = imp.getStatistics(Measurements.MEAN)
     return stats.mean
 
-def medir_roi_std(imp, roi=None):
+def measure_roi_std(imp, roi=None):
     """Measures the standard deviation of pixel values within a given ROI."""
     if roi is not None:
         imp.setRoi(roi)
@@ -95,9 +107,17 @@ def subtract_two_images_via_calculator():
     if impB is None: return
     
     # Set both images to slice 7 for consistency
-    impA.setSlice(7)
-    impB.setSlice(7)
-
+    if impA.getNSlices() < 7:
+        impA.setSlice(1)
+    else:
+        impA.setSlice(7)
+    
+    if impB.getNSlices() < 7:
+        impB.setSlice(1)
+    else:
+        impB.setSlice(7)
+        
+ 
     # 4) Image Calculator: A - B (creates a new window)
     ic = ImageCalculator()
     result = ic.run("subtract create", impA, impB)  # 'create' => new image
@@ -113,6 +133,8 @@ def subtract_two_images_via_calculator():
     return result, impA
 
 # --- Main Script Execution ---
+
+IJ.log("---- Signal to Noise Ratio Test ----")
 
 # Perform image subtraction
 result, impA = subtract_two_images_via_calculator()
@@ -192,9 +214,9 @@ if gd.wasCanceled():
 
 # --- Calculation of SNR ---
 # The signal (mean) is measured from the original image (impA)
-mean_ref = medir_roi_mean(impA)
+mean_ref = measure_roi_mean(impA)
 # The noise (standard deviation) is measured from the subtracted image (result)
-std_ref = medir_roi_std(result)
+std_ref = measure_roi_std(result)
 # SNR formula based on ACR guidelines
 SNR = mean_ref / std_ref
 # Note: The ACR method often includes a scaling factor (e.g., * sqrt(2)) depending on the specific protocol.

@@ -20,24 +20,35 @@ from ij.plugin.frame import RoiManager
 from javax.swing import SwingUtilities
 import math
 
-# === Utility Functions ===
+# === All functions used in the script are defined here ===
 
-# Convert ROI area (cm²) into equivalent radius in pixels
+# === Function to convert area in cm² to radius in pixels ===
 def area_to_radius_pixels(area_cm2, px_w_cm, px_h_cm):
+    """Converts an area in cm² to the radius in pixels for an oval ROI.
+    
+    Returns the radius in pixels.
+    """
     pixel_area_cm2 = px_w_cm * px_h_cm
     return math.sqrt(area_cm2 / (math.pi * pixel_area_cm2))
 
-# Measure mean signal inside a ROI
-def medir_roi_mean(imp, roi=None):
+# === Function to measure mean intensity in ROI ===
+def measure_roi_mean(imp, roi=None):
+    """Measures the mean intensity of the given ROI in the image.
+    If no ROI is provided, uses the current ROI in the image.
+    Returns the mean intensity value.
+    """
     if roi is not None:
         imp.setRoi(roi)
     stats = imp.getStatistics(Measurements.MEAN)
     return stats.mean
 
-# Close Window/Level or Brightness/Contrast window if open
-def fechar_wl():
-    candidatos = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
-    for t in candidatos:
+# === Function to close the W&L window if open === 
+def close_wl():
+    """Closes any open Brightness/Contrast or Window/Level dialogs.
+    
+    """
+    candidates = ["Brightness/Contrast", "W&L", "Window/Level", "B&C"]
+    for t in candidates:
         w = WindowManager.getWindow(t) or WindowManager.getFrame(t)
         if w is not None:
             try:
@@ -60,8 +71,12 @@ def fechar_wl():
             return True
     return False
 
-# Open DICOM file
+# === Function to open DICOM files ===
 def open_dicom_file(prompt):
+    """Opens a file chooser dialog to select a DICOM file.
+    
+    Returns the ImagePlus object or None if the operation is canceled or fails.
+    """
     od = OpenDialog(prompt, None)
     path = od.getPath()
     if path is None:
@@ -73,20 +88,41 @@ def open_dicom_file(prompt):
     imp.show()
     return imp
 
-# Identify image type by slice count
+# === Function to print image type based on TR value ===
 def printImageType(imp):
-    slices = imp.getNSlices()
-    if slices < 11:
+    """Print the DICOM image type based on the TR (Repetition Time) value.
+
+    Typical TR values:
+    - Localizer: ~200 ms
+    - T1-weighted (T1w): ~500 ms
+    - T2-weighted (T2w): ~2000 ms
+    """
+
+    tr = None
+    info = imp.getInfoProperty()
+
+    if info is not None:
+        for line in info.split("\n"):
+            if line.startswith("0018,0080"):  # TR tag
+                try:
+                    tr = float(line.split(":")[1].strip())
+                except:
+                    tr = None
+                    IJ.log("Could not parse TR value.")
+
+    if tr is None:
+        IJ.log("TR value not found.")
+    elif tr < 300:
         IJ.log("Image Type: Localizer.")
-    elif slices > 11:
-        IJ.log("Image Type: ACR T2w image.")
-    else:
-        IJ.log("Image Type: ACR T1w image.")
+    elif tr >= 300 and tr < 1000:
+        IJ.log("Image Type: ACR T1-weighted image.")
+    elif tr >= 1000:
+        IJ.log("Image Type: ACR T2-weighted image.")
 
 # ---- Main Procedure ----
 IJ.log("---- Image Intensity Uniformity Test ----")
-WaitForUserDialog("Open the T1 image and perform the uniformity test").show()
-imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
+WaitForUserDialog("Open the T1 or T2 image and perform the uniformity test").show()
+imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 
 if imp is None:
     IJ.error("No image open.")
@@ -102,10 +138,27 @@ IJ.run("In [+]", ""); IJ.run("In [+]", "")
 
 # ===== Step 1: Navigate to slice 7 =====
 if imp.getNSlices() < 7:
-    IJ.error("The stack does not contain 7 slices (it has {}).".format(imp.getNSlices()))
-    raise SystemExit
-imp.setSlice(7)
-IJ.log("Slice set to 7.")
+    #IJ.error("The stack does not contain 7 slices (it has {}).".format(imp.getNSlices()))
+    #raise SystemExit
+    imp.setSlice(1)
+    IJ.log("Slice set to 1 (only {} slices in stack).".format(imp.getNSlices()))
+elif imp.getNSlices() == 11:
+    imp.setSlice(7)
+    IJ.log("Slice set to 7.")
+else:
+    dlg = WaitForUserDialog(
+        "This image has more than 11 slices, assuming it is a Multi-Echo T2-weighted image.\n"
+        "Select the slice with no visible structures (usually slice 14 or 18)")
+    dlg.show()
+    # choose slice
+    slice_num = IJ.getNumber("Enter the slice number to analyze (1 to %d):" % imp.getNSlices(), 14)
+    if slice_num is None or slice_num < 1 or slice_num > imp.getNSlices():
+        IJ.error("Invalid slice number.")
+        raise SystemExit
+    imp.setSlice(int(slice_num))
+    IJ.log("Slice set to %d." % int(slice_num))
+    
+# adjust window/level for central values
 IJ.resetMinAndMax(imp)
 IJ.log("Window/Level adjusted to central values.")
 
@@ -168,7 +221,7 @@ if gd.wasCanceled():
     IJ.log("Cancelled.")
     raise SystemExit
 
-mean_ref = medir_roi_mean(imp)
+mean_ref = measure_roi_mean(imp)
 IJ.log("Initial mean (large ROI): {:.3f}".format(mean_ref))
 
 # ===== Step 4: Low-signal adjustment =====
@@ -192,7 +245,7 @@ dlg = WaitForUserDialog("Position small ROI - low signal",
     "Move the small ROI to the region of lowest signal (within the large ROI).\nPress 'OK' to continue.")
 dlg.show()
 
-low_signal = medir_roi_mean(imp)
+low_signal = measure_roi_mean(imp)
 IJ.log("Low signal mean: {:.3f}".format(low_signal))
 
 # Ensure large ROI is saved
@@ -215,7 +268,7 @@ dlg = WaitForUserDialog("Position small ROI - high signal",
 dlg.show()
 
 rm.addRoi(roi_small_high)
-high_signal = medir_roi_mean(imp)
+high_signal = measure_roi_mean(imp)
 IJ.log("High signal mean: {:.3f}".format(high_signal))
 
 # ===== Step 6: Calculate PIU =====
@@ -237,9 +290,7 @@ if gd.wasCanceled():
 
 dlg = WaitForUserDialog("Uniformity test completed, collect the results.")
 dlg.show()
-
-# ===== Cleanup =====
-fechar_wl()
+close_wl()
 imp.close()
 IJ.run("Clear Results")
 IJ.log("---- End of the Image Intensity Uniformity Test ----")

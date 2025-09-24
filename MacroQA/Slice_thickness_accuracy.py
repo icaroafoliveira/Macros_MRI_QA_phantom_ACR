@@ -11,8 +11,9 @@ from ij.process import ImageStatistics
 from ij.measure import ResultsTable
 from ij.io import OpenDialog
 
-# --- Helper Functions ---
+# === All functions used in the script are defined here ===
 
+# === Function to open DICOM files ===
 def open_dicom_file(prompt):
     """
     Opens a DICOM file selected via a dialog box.
@@ -29,39 +30,52 @@ def open_dicom_file(prompt):
     imp.show()
     return imp
 
-def fechar_result():
+# === Function to close the W&L window if open ===
+def close_result():
     """Closes the 'Results' window if it is open."""
     # Try if exists
     if WindowManager.getWindow("Results") is not None:
         IJ.selectWindow("Results")
         IJ.run("Close")
 
+# === Function to print image type based on TR value ===
 def printImageType(imp):
-    """
-    Checks the number of slices and prints the corresponding image type
-    (Localizer, T1w, or T2w) to the log.
-    """
-    # Make sure that the image is the expected one
-    # Localizer is a single-slice image
-    # T1w has 11 slices
-    # T2w has 22 slices (2 echo times)
-      
-    slices = imp.getNSlices()      # z dimension
+    """Print the DICOM image type based on the TR (Repetition Time) value.
 
-    if slices < 11:
+    Typical TR values:
+    - Localizer: ~200 ms
+    - T1-weighted (T1w): ~500 ms
+    - T2-weighted (T2w): ~2000 ms
+    """
+
+    tr = None
+    info = imp.getInfoProperty()
+
+    if info is not None:
+        for line in info.split("\n"):
+            if line.startswith("0018,0080"):  # TR tag
+                try:
+                    tr = float(line.split(":")[1].strip())
+                except:
+                    tr = None
+                    IJ.log("Could not parse TR value.")
+
+    if tr is None:
+        IJ.log("TR value not found.")
+    elif tr < 300:
         IJ.log("Image Type: Localizer.")
-    elif slices > 11:
-        IJ.log("Image Type: ACR T2w image.")
-    else:
-        IJ.log("Image Type: ACR T1w image.")
+    elif tr >= 300 and tr < 1000:
+        IJ.log("Image Type: ACR T1-weighted image.")
+    elif tr >= 1000:
+        IJ.log("Image Type: ACR T2-weighted image.")
 
 # --- Main Script Execution ---
 
 IJ.log("---- Slice Thickness Accuracy Test ----")
 
 # Step 1: Open the T1-weighted image
-WaitForUserDialog("Open the T1 image and perform the slice thickness accuracy test.").show()
-imp = open_dicom_file("Select T1-weighted DICOM image (multi-slice)")
+WaitForUserDialog("Open the T1 or T2 image and perform the slice thickness accuracy test.").show()
+imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 
 if imp is None:
     IJ.error("No image open.")
@@ -69,6 +83,22 @@ if imp is None:
 
 # Print image type for confirmation
 printImageType(imp)
+
+# Go to first slice
+if imp.getNSlices() <= 11:
+    imp.setSlice(1)
+elif imp.getNSlices() > 11:
+    dlg = WaitForUserDialog(
+        "This image has more than 11 slices, assuming it is a Multi-Echo T2-weighted image.\n"
+        "Select the slice that shows the bars (usually slice 2 or 12).")
+    dlg.show()
+    # choose slice
+    slice_num = IJ.getNumber("Enter the slice number to analyze (1 to %d):" % imp.getNSlices(), 1)
+    if slice_num is None or slice_num < 1 or slice_num > imp.getNSlices():
+        IJ.error("Invalid slice number.")
+        raise SystemExit
+    imp.setSlice(int(slice_num))
+    IJ.log("Slice set to %d." % int(slice_num))
 
 # Prepare the environment and image display
 IJ.run("Clear Results")
@@ -148,22 +178,22 @@ length4 = roi4.getLength()
 # Step 6: Calculate the final slice thickness
 # The formula combines the measured lengths to determine the true slice thickness.
 # The factor 0.2 is based on the ACR phantom design (20-degree incline, tan(20) ~ 0.364, simplified).
-resultado = 0.2 * (length3 * length4) / (length3 + length4)
+results = 0.2 * (length3 * length4) / (length3 + length4)
 
 # Step 7: Display and save results
-IJ.log("{:.3f}".format(resultado))
-
 # Add the result to the results table
 rt = ResultsTable.getResultsTable()
 rt.incrementCounter()
-rt.addValue("Final result", resultado)
+rt.addValue("Final result", results)
 rt.show("Results")
     
 WaitForUserDialog("Slice Thickness Accuracy Test completed, collect the results.").show()
 
 # Clean up and finalize
 imp.close()
-fechar_result()
+close_result()
 IJ.run("Clear Results")
+IJ.log("Slice thickness: {:.3f}".format(results))
+IJ.log("{:.3f}".format(results))
 IJ.log("---- End of the Slice Thickness Accuracy Test ----")
 IJ.log("")
