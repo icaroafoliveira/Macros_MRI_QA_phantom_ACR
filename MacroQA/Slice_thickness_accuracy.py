@@ -1,3 +1,10 @@
+# --- MacroQA File Header ---
+# Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
+# File: Slice_thickness_accuracy.py
+# Version 1.0.0
+# Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
+# ---------------------------
+
 # Macro to perform the Slice Thickness Accuracy Test on an ACR phantom MRI scan.
 # The user is guided to measure two inclined planes in a T1-weighted image
 # to verify if the slice thickness is within the acceptable range.

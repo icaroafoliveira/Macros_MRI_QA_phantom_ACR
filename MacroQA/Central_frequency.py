@@ -1,7 +1,13 @@
+# --- MacroQA File Header ---
+# Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
+# File: Central_frequency.py
+# Version 1.0.0
+# Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
+# ---------------------------
+
 # Macro to extract the central frequency from the DICOM header of an ACR phantom MRI scan.
 # The script assumes that the user will select the ACR T1-weighted image.
 # The Imaging Frequency tag (0018, 0084) is extracted and printed in the log.
-
 
 from ij import IJ
 from ij.io import OpenDialog

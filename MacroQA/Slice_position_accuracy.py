@@ -1,3 +1,10 @@
+# --- MacroQA File Header ---
+# Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
+# File: Slice_position_accuracy.py
+# Version 1.0.0
+# Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
+# ---------------------------
+
 # Macro to perform the Slice Position Accuracy Test on an ACR phantom MRI scan.
 # This test checks for discrepancies between the prescribed and actual slice locations.
 # The user is guided to measure the height difference between two vertical bars on slices 1 and 11
@@ -146,15 +153,40 @@ def open_dicom_file(prompt):
 #     imp.updateAndDraw()
 
 def adjust_window_level(imp, level, window):
-    """Sets the display range (window/level) for the image."""
-    stats = imp.getProcessor().getStatistics()
-    img_min, img_max = stats.min, stats.max
+    """
+    Adjusts display window/level based on phantom signal.
+    The level is set to ~half the mean signal in the bright phantom region.
+    The window is scaled relative to that mean.
+    """
+    ip = imp.getProcessor()
+    stats = ip.getStatistics(ImageStatistics.MEAN | ImageStatistics.MIN_MAX)
 
-    min_display = max(img_min, level - window / 2)
-    max_display = min(img_max, level + window / 2)
+    mean_signal = stats.mean
+    min_signal = stats.min
+
+    # Estimate level as ~half the mean bright signal
+    level = 0.5 * mean_signal
+
+    # Define window width (heuristic: full mean or scaled)
+    window = window_scale * mean_signal
+
+    min_display = max(min_signal, level - window / 2.0)
+    max_display = level + window / 2.0
 
     imp.setDisplayRange(min_display, max_display)
     imp.updateAndDraw()
+    IJ.log("Window/Level set to min=%.2f, max=%.2f" % (min_display, max_display))
+    
+
+    # """Sets the display range (window/level) for the image."""
+    # stats = imp.getProcessor().getStatistics()
+    # img_min, img_max = stats.min, stats.max
+
+    # min_display = max(img_min, level - window / 2)
+    # max_display = min(img_max, level + window / 2)
+
+    # imp.setDisplayRange(min_display, max_display)
+    # imp.updateAndDraw()
     
 # === Function to print image type based on TR value ===
 def printImageType(imp):
@@ -232,7 +264,7 @@ IJ.run("Brightness/Contrast...")
 IJ.run("Window/Level...")
 
 # Zoom to a specific region of interest to guide the user to the bars
-zoom_to_rect_pixels(x = 119, y = 53, w = 18, h = 12)
+zoom_to_rect_pixels(x = 100, y = 65, w = 80, h = 10)
 
 # Provide instructions and wait for user action
 WaitForUserDialog("Slice Position Accuracy Test.\n"

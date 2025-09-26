@@ -1,3 +1,10 @@
+# --- MacroQA File Header ---
+# Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
+# File: Geometric_accuracy.py
+# Version 1.0.0
+# Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
+# ---------------------------
+
 # Macro to perform the Geometric Accuracy test of the ACR MRI phantom.
 # The script assumes that the user will select the Localizer image first (single slice)
 # and then the ACR T1-weighted image (multi-slice).

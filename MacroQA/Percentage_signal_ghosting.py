@@ -1,3 +1,10 @@
+# --- MacroQA File Header ---
+# Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
+# File: Percentage_signal_ghosting.py
+# Version 1.0.0
+# Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
+# ---------------------------
+
 # Macro to calculate the Percentage Signal Ghosting Ratio (GR) from an ACR phantom MRI scan.
 # The macro guides the user through placing specific Regions of Interest (ROIs) on a T1-weighted image.
 # It measures the signal intensity in these ROIs to quantify ghosting artifacts, which are often caused by patient or gradient motion.

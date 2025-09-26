@@ -1,3 +1,10 @@
+# --- MacroQA File Header ---
+# Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
+# File: Signal_to_noise_ratio.py
+# Version 1.0.0
+# Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
+# ---------------------------
+
 # Macro to calculate the Signal to Noise Ratio (SNR) from an ACR phantom MRI scan.
 # The macro uses a subtraction method, requiring two identical scans (T1-weighted) of the same phantom.
 # The SNR is calculated by measuring the mean signal from a central ROI on one image

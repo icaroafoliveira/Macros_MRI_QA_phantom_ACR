@@ -1,3 +1,10 @@
+# --- MacroQA File Header ---
+# Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
+# File: Low_contrast_objective_detectability.py
+# Version 1.0.0
+# Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
+# ---------------------------
+
 # Macro to perform the Low Contrast Objective Detectability test of the ACR MRI phantom.
 # The script assumes that the user will select the T1-weighted image first (multi-slice or selecting 4 single slices)
 # and then the T2-weighted image (multi-slice or selecting 4 single slices).

@@ -1,3 +1,10 @@
+# --- MacroQA File Header ---
+# Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
+# File: High_contrast_spatial_resolution.py
+# Version 1.0.0
+# Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
+# ---------------------------
+
 # Macro to perform the High-Contrast Spatial Resolution test for MRI ACR phantom.
 # This script guides the user through visualization adjustments and ROI selection,
 # then records the smallest visible hole size in the resolution insert.

@@ -28,10 +28,12 @@ Each test follows the acceptance criteria defined in the **ACR MRI QA Program**.
 
 ---
 
-## Instalation
-1. Ensure that you have [Fiji](https://imagej.net/software/fiji/) installed, preferably with JAVA 8 runtime.
-*Note: We recommend Fiji version because it already includes Jython library.*
+## Installation
+1. Ensure that you have [Fiji](https://imagej.net/software/fiji/) installed, preferably with Java 8 runtime.
+*Note: We recommend using the Fiji distribution because it already includes the Jython library.*
 2. Clone or download the `MacroQA` repository from this GitHub page.
+*Note: This software is a self-contained ImageJ/Fiji macro and does not require any external dependencies beyond a standard installation of Fiji. It relies solely on the core functions of ImageJ and Jython.*
+
 
 ---
 
@@ -52,18 +54,35 @@ This method is ideal for quick use or one-off tests.
 ---
 
 ### Method 2: Install as a Plugin
-Installing `MacroQA` as a plugin integrates it into Fiji's menu system, maiking it persistently available across sessions.
+Installing `MacroQA` as a plugin integrates it into Fiji's menu system, making it persistently available across sessions.
 
-**Steps:**
-1. Copy the entire `MacroQA` folder into your Fiji installation under: `C:\Program Files\Fiji\Fiji.app\plugins\Macros`(usually on windows) or any other subfolder that you want.
+**Steps (general):**
+1. Copy the `MacroQA` folder into a subdirectory of your Fiji `plugins` folder (for example, `.../Fiji.app/plugins/` or `.../Fiji.app/plugins/Macros/`).
 2. Restart Fiji.
 3. The macros will now appear in the *Plugins > Macros* menu.
+
+**Platform-specific examples:**
+- Windows (typical): `C:\Program Files\Fiji\Fiji.app\plugins\Macros\MacroQA`
+- macOS (typical): `/Applications/Fiji.app/plugins/Macros/MacroQA` or `~/Fiji.app/plugins/Macros/MacroQA`
+- Linux (typical): `/home/<user>/Fiji.app/plugins/Macros/MacroQA` or `/opt/Fiji.app/plugins/Macros/MacroQA`
+
+---
+
+## Usage example
+Once installed, MacroQA becomes available under the Plugins > Macros menu in Fiji (Figure 1). From there, the user can select any of the available ACR quality control tests, such as Central Frequency, Geometric Accuracy, or Signal-to-Noise Ratio.
+![Figure 1: Accessing QC tests from Macros menu in Fiji.](./figures/macro001.png)
+When a test is launched, MacroQA guides the user through the required steps via dialog boxes and messages. For example, running the Central Frequency test (Figure 2) prompts the user to select the appropriate image series and automatically reports the measured resonance frequency in the Fiji log window.
+![Figure 2: Example of Central Frequency test dialog.](./figures/macro002.png)
+Some tests require user interaction, such as drawing straight lines or selecting regions of interest. In the Geometric Accuracy test (Figures 3–5), the macro requests that the user load the Localizer image and draw reference lines across the phantom. These inputs are then used to calculate geometric dimensions, which are compared against the ACR acceptance criteria.
+![Figure 3: Example of procedure for the Geometric Accuracy test.](./figures/macro003.png)
 
 ---
 
 ## Known notes & recommendations
+- **Available data:** Data is available for testing, mind that the data format is *enhanced DICOM*, and ACR T2 series has two echo times.
 - **Java / Jython**: MacroQA relies on Jython (Python 2). Ensure Fiji is running with a Java runtime that supports Jython (Java 8 is recommended).  
 - **Enhanced/multi-frame DICOMs**: The macros attempt to handle the following cases: *enhanced DICOMs, multi-frame DICOMs and single-frame DICOMs*, but for enhanced DICOM follows proprietary Philips ordering formats.
+- **ACR manual guidelines:** Users are encouraged to first review and follow the [ACR MRI Phantom testing guidelines](https://accreditationsupport.acr.org/helpdesk/attachments/11093487417) when using MacroQA. This ensures familiarity with the procedures and acceptance criteria before relying on automated analysis.
 
 ---
 

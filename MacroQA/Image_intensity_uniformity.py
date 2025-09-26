@@ -1,3 +1,10 @@
+# --- MacroQA File Header ---
+# Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
+# File: Image_intensity_uniformity.py
+# Version 1.0.0
+# Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
+# ---------------------------
+
 # Macro to perform the Image Intensity Uniformity (PIU) test for MRI ACR phantom.
 # This script guides the user through ROI placement and manual W&L adjustments,
 # then computes the Percent Integral Uniformity (PIU) according to ACR guidelines.
@@ -275,7 +282,7 @@ IJ.log("High signal mean: {:.3f}".format(high_signal))
 if (high_signal + low_signal) == 0:
     IJ.log("Error: high + low == 0, unable to calculate PIU.")
 else:
-    piu = 100.0 * (1.0 - ((high_signal - low_signal) / (high_signal + low_signal)))
+    piu = 100.0 * (1.0 - (abs(high_signal - low_signal) / abs(high_signal + low_signal)))
     IJ.log("Calculated PIU: {:.2f}".format(piu))
     IJ.log("{:.2f}".format(piu))
 
