@@ -82,11 +82,11 @@ Installing `MacroQA` as a plugin integrates it into Fiji's menu system, making i
 
 ## Usage example
 Once installed, MacroQA becomes available under the Plugins > Macros menu in Fiji (Figure 1). From there, the user can select any of the available ACR quality control tests, such as Central Frequency, Geometric Accuracy, or Signal-to-Noise Ratio.
-![Figure 1: Accessing QC tests from Macros menu in Fiji.](../figures/macro001.png)
+![Figure 1: Accessing QC tests from Macros menu in Fiji.](../figures/macro001.png){ width=60% }
 When a test is launched, MacroQA guides the user through the required steps via dialog boxes and messages. For example, running the Central Frequency test (Figure 2) prompts the user to select the appropriate image series and automatically reports the measured resonance frequency in the Fiji log window.
-![Figure 2: Example of Central Frequency test dialog.](../figures/macro002.png)
+![Figure 2: Example of Central Frequency test dialog.](../figures/macro002.png){ width=60% }
 Some tests require user interaction, such as drawing straight lines or selecting regions of interest. In the Geometric Accuracy test (Figures 3), the macro requests that the user load the Localizer image and draw reference lines across the phantom. It then requests that the user load the ACR T1 series, where two different slices are assessed. These inputs are then used to calculate geometric dimensions, which are compared against the ACR acceptance criteria.
-![Figure 3: Example of procedure for the Geometric Accuracy test.](../figures/macro003.png)
+![Figure 3: Example of procedure for the Geometric Accuracy test.](../figures/macro003.png){ width=60% }
 
 This combination of guided prompts and automated calculations ensures that even users with limited prior experience can reliably perform ACR phantom quality control tests in a reproducible manner.
 
