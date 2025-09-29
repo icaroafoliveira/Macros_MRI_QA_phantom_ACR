@@ -30,11 +30,11 @@ Each test follows the acceptance criteria defined in the **ACR MRI QA Program**.
 
 ## Installation
 1. Ensure that you have [Fiji](https://imagej.net/software/fiji/) installed, preferably with Java 8 runtime.
-[!NOTE]
-We recommend using the Fiji distribution because it already includes the Jython library.
+> [!NOTE]
+> We recommend using the Fiji distribution because it already includes the Jython library.
 2. Clone or download the `MacroQA` repository from this GitHub page.
-[!NOTE]
-This software is a self-contained ImageJ/Fiji macro and does not require any external dependencies beyond a standard installation of Fiji. It relies solely on the core functions of ImageJ and Jython.
+> [!NOTE]
+> This software is a self-contained ImageJ/Fiji macro and does not require any external dependencies beyond a standard installation of Fiji. It relies solely on the core functions of ImageJ and Jython.
 
 
 ---
@@ -63,8 +63,8 @@ Installing `MacroQA` as a plugin integrates it into Fiji's menu system, making i
 2. Restart Fiji.
 3. The macros will now appear in the *Plugins > Macros* menu.
 
-[!TIP]
-**Platform-specific examples:**
+> [!TIP]
+> **Platform-specific examples:**
 - Windows (typical): `C:\Program Files\Fiji\Fiji.app\plugins\Macros\MacroQA`
 - macOS (typical): `/Applications/Fiji.app/plugins/Macros/MacroQA` or `~/Fiji.app/plugins/Macros/MacroQA`
 - Linux (typical): `/home/<user>/Fiji.app/plugins/Macros/MacroQA` or `/opt/Fiji.app/plugins/Macros/MacroQA`
