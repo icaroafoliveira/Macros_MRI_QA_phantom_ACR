@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Central_frequency.py
-# Version 1.0.1
+# Version 1.0.2
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 

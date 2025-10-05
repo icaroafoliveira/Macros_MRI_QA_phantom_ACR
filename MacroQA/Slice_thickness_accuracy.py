@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Slice_thickness_accuracy.py
-# Version 1.0.1
+# Version 1.0.2
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -13,8 +13,6 @@
 from ij import IJ, WindowManager
 from ij.gui import Roi, WaitForUserDialog
 from ij.measure import Measurements
-from ij.plugin.frame import RoiManager
-from ij.process import ImageStatistics
 from ij.measure import ResultsTable
 from ij.io import OpenDialog
 
@@ -112,6 +110,7 @@ IJ.run("Clear Results")
 IJ.run(imp, "Original Scale", "")
 IJ.run("In [+]", "")
 IJ.run("In [+]", "")
+IJ.run("In [+]", "")
 
 # Step 2: Initial Window/Level Adjustment for plane visibility
 # The initial window/level settings (window=300, level=200) are set to highlight the inclined planes.
@@ -127,26 +126,32 @@ imp.updateAndDraw()
 IJ.setTool("rectangle")
 
 # ROI 1 Selection (Background)
-WaitForUserDialog("Select ROI 1 (Rectangle)").show()
-roi1 = imp.getRoi()
-if roi1 is None or roi1.getType() != Roi.RECTANGLE:
-    IJ.error("ROI 1 has an invalid shape or was not selected.")
-    raise SystemExit
-imp.setRoi(roi1)
-IJ.run("Measure")
-stats1 = imp.getStatistics(Measurements.MEAN)
-mean1 = stats1.mean
+while True:
+    WaitForUserDialog("Place the rectangular ROI in the middle of the top ramp.\n"
+                      "Click OK to perform the measurement.").show()
+    roi1 = imp.getRoi()
+    if roi1 is None or roi1.getType() != Roi.RECTANGLE:
+        IJ.showMessage("Invalid ROI", "ROI 1 must be a rectangular selection. Please try again.")
+        continue
+    imp.setRoi(roi1)
+    IJ.run("Measure")
+    stats1 = imp.getStatistics(Measurements.MEAN)
+    mean1 = stats1.mean
+    break
 
 # ROI 2 Selection (Background)
-WaitForUserDialog("Select ROI 2 (Rectangle)").show()
-roi2 = imp.getRoi()
-if roi2 is None or roi2.getType() != Roi.RECTANGLE:
-    IJ.error("ROI 2 has an invalid shape or was not selected.")
-    raise SystemExit
-imp.setRoi(roi2)
-IJ.run("Measure")
-stats2 = imp.getStatistics(Measurements.MEAN)
-mean2 = stats2.mean
+while True:
+    WaitForUserDialog("Place the rectangular ROI in the middle of the bottom ramp.\n"
+                      "Click OK to perform the measurement.").show()
+    roi2 = imp.getRoi()
+    if roi2 is None or roi2.getType() != Roi.RECTANGLE:
+        IJ.showMessage("Invalid ROI", "ROI 2 must be a rectangular selection. Please try again.")
+        continue
+    imp.setRoi(roi2)
+    IJ.run("Measure")
+    stats2 = imp.getStatistics(Measurements.MEAN)
+    mean2 = stats2.mean
+    break
 
 # Step 4: Refine Window/Level based on measured signal
 # The display is re-adjusted to enhance the visibility of the inclined planes,
@@ -163,24 +168,30 @@ imp.updateAndDraw()
 IJ.setTool("line")
 
 # ROI 3 Selection (Inclined Plane 1)
-WaitForUserDialog("Select ROI 3 (Straight Line)").show()
-roi3 = imp.getRoi()
-if roi3 is None or roi3.getType() != Roi.LINE:
-    IJ.error("ROI 3 has an invalid shape or was not selected.")
-    raise SystemExit
-imp.setRoi(roi3)
-IJ.run("Measure")
-length3 = roi3.getLength()
+while True:
+    WaitForUserDialog("Draw a straight line to record the length of the top ramp.\n"
+                      "Click OK to perform the measurement.").show()
+    roi3 = imp.getRoi()
+    if roi3 is None or roi3.getType() != Roi.LINE:
+        IJ.showMessage("Invalid ROI", "ROI 3 must be a straight line. Please try again.")
+        continue
+    imp.setRoi(roi3)
+    IJ.run("Measure")
+    length3 = roi3.getLength()
+    break
 
 # ROI 4 Selection (Inclined Plane 2)
-WaitForUserDialog("Select ROI 4 (Straight Line)").show()
-roi4 = imp.getRoi()
-if roi4 is None or roi4.getType() != Roi.LINE:
-    IJ.error("ROI 4 has an invalid shape or was not selected.")
-    raise SystemExit
-imp.setRoi(roi4)
-IJ.run("Measure")
-length4 = roi4.getLength()
+while True:
+    WaitForUserDialog("Draw a straight line to record the length of the bottom ramp.\n"
+                      "Click OK to perform the measurement.").show()
+    roi4 = imp.getRoi()
+    if roi4 is None or roi4.getType() != Roi.LINE:
+        IJ.showMessage("Invalid ROI", "ROI 4 must be a straight line. Please try again.")
+        continue
+    imp.setRoi(roi4)
+    IJ.run("Measure")
+    length4 = roi4.getLength()
+    break
 
 # Step 6: Calculate the final slice thickness
 # The formula combines the measured lengths to determine the true slice thickness.

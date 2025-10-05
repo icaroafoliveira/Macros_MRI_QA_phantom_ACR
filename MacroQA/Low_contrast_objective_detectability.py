@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Low_contrast_objective_detectability.py
-# Version 1.0.1
+# Version 1.0.2
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -13,16 +13,11 @@
 
 from ij import IJ, WindowManager, ImagePlus, ImageStack
 from ij.io import OpenDialog
-from ij.measure import ResultsTable
 from ij.gui import WaitForUserDialog
-import java
-from ij.measure import Measurements
-from ij.process import ImageStatistics
 from ij.gui import GenericDialog
 from java.awt import Font
 import math
 from javax.swing import JFileChooser
-from java.io import File
 
 # === All functions used in the script are defined here ===
 
@@ -269,6 +264,34 @@ def select_and_open_dicom(prompt, image_type_label=""):
 
 # --- Main script starts here ---
 IJ.log("---- Start of Low Contrast Objective Detectability Test ----")
+
+# Instructions for the user
+gd = GenericDialog("Instructions")
+gd.addMessage("Attention!", Font("SansSerif", Font.BOLD, 20))
+gd.addMessage("This test evaluates the low contrast objective detectability of the ACR MRI phantom.\n\n"
+              "You will be prompted to select the T1-weighted image first (Enhanced DICOM, multi-slice (other single file DICOM) or selecting 4 single slices),\n"
+                "and then the T2-weighted image (Enhanced DICOM, multi-slice or selecting 4 single slices).\n\n", Font("SansSerif", Font.ITALIC, 18))
+# Best-effort: hide the Cancel button so only OK is visible.
+try:
+    # Preferred: if GenericDialog exposes getButtons()
+    buttons = gd.getButtons()
+    for b in buttons:
+        try:
+            lbl = b.getLabel()
+        except:
+            lbl = ""
+        if lbl and lbl.lower().startswith("cancel"):
+            b.setVisible(False)
+except:
+    try:
+        # Fallback: some ImageJ builds expose cancelButton attribute
+        if getattr(gd, "cancelButton", None) is not None:
+            gd.cancelButton.setVisible(False)
+    except:
+        # If neither approach works, ignore and show dialog normally
+        pass
+    
+gd.showDialog()
 
 # --- T1 weighted image ---
 # Identification of DICOM type

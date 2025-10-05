@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Percentage_signal_ghosting.py
-# Version 1.0.1
+# Version 1.0.2
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -319,10 +319,27 @@ gd = GenericDialog("Instructions")
 gd.addMessage("WARNING!", Font("SansSerif", Font.BOLD, 20))
 gd.addMessage("Close the ROI Manager window right after completing the test.", Font("SansSerif", Font.ITALIC, 12))
 gd.addMessage("Click 'OK' to continue.", Font("SansSerif", Font.ITALIC, 12))
+# Best-effort: hide the Cancel button so only OK is visible.
+try:
+    # Preferred: if GenericDialog exposes getButtons()
+    buttons = gd.getButtons()
+    for b in buttons:
+        try:
+            lbl = b.getLabel()
+        except:
+            lbl = ""
+        if lbl and lbl.lower().startswith("cancel"):
+            b.setVisible(False)
+except:
+    try:
+        # Fallback: some ImageJ builds expose cancelButton attribute
+        if getattr(gd, "cancelButton", None) is not None:
+            gd.cancelButton.setVisible(False)
+    except:
+        # If neither approach works, ignore and show dialog normally
+        pass
 gd.showDialog()
-if gd.wasCanceled():
-    IJ.log("Cancelled.")
-    raise SystemExit
+
 
 WaitForUserDialog("Percentage Signal Ghosting Test completed, collect the results.\n").show()
 imp.close()

@@ -31,7 +31,7 @@ affiliations:
    index: 2
  - name: "Centro das Ciências da Imagem e Física Médica, Hospital das Clínicas da Faculdade de Medicina de Ribeirão Preto, Universidade de São Paulo, Brazil"
    index: 3 
-date: 20 October 2025
+date: 5 October 2025
 bibliography: paper.bib
 ---
 
@@ -39,11 +39,10 @@ bibliography: paper.bib
 MacroQA is an open-source ImageJ/Fiji macro package that implements the American College of Radiology (ACR) quality assurance (QA) tests for MRI phantoms. The project was developed with academic and pedagogical goals in mind, and it aims to simplify and standardize phantom testing. By leveraging Fiji/ImageJ's built-in functionality, MacroQA performs the ACR phantom tests quickly and reproducibly, completing the QA workflow within minutes. As a free and accessible alternative to proprietary software, MacroQA lowers barriers to adoption, promotes reproducibility, and supports collaborative development in the MRI research and clinical communities.
 
 # Statement of need
-Magnetic resonance imaging (MRI) is one of the most powerful diagnostic and research tools in medicine. From a neuroimaging perspective, MRI enables the study of brain anatomy, function, connectivity (both functional and structural), and metabolism. Its diversity and broad applicability have made MRI indispensable in modern medicine and neuroscience [@dumoulin_ultra-high_2018; @granziera_quantitative_2021; @ruber_mri_2018; @macdonald_cerebrovascular_2015].
-To ensure reliable scanner performance, quality assurance (QA) programs and quality control (QC) tests are essential: they monitor stability and detect deviations in parameters that affect image quality [@epistatou_automated_2020; @vogelbacher_labqa2go_2019]. The most widely adopted program is that of the American College of Radiology (ACR), which uses a standardized accreditation phantom.
-Reproducibility is a central concern in the MRI community. QA/QC procedures quantify experimental stability, identify outliers, reduce variability in outcome measures, and strengthen the reliability of both research findings and clinical diagnoses [@stocker_reproducibility_2025].
-Many existing implementations of ACR QA tests rely on proprietary platforms such as MATLAB [@sun_open_2015]. These require paid licenses and limit accessibility, creating barriers for facilities that lack commercial software.
-MacroQA addresses this gap by providing an open-source implementation of ACR QA tests within Fiji/ImageJ using the Jython scripting language. This design removes financial barriers while promoting transparency and reproducibility. By making the code openly available, MacroQA offers a cost-effective, shareable, and verifiable solution for MRI phantom QA that supports both clinical practice and reproducible research.
+Magnetic resonance imaging (MRI) is indispensable in modern medicine and neuroscience, enabling diverse applications from clinical diagnosis to the study of functional brain connectivity. [@dumoulin_ultra-high_2018; @granziera_quantitative_2021; @ruber_mri_2018; @macdonald_cerebrovascular_2015].
+To uphold image quality and ensure the reproducibility of results-a central concern across the MR community- a robust Quality Assurance (QA) and Quality Control (QC) procedures are essential [@epistatou_automated_2020; @vogelbacher_labqa2go_2019; @stocker_reproducibility_2025; @sun_open_2015]. The most widely adopted standards is the QA program established by the American College of Radiology (ACR), which relies on a dedicated accreditaion phantom.
+Despite the critical need for standardization, existing software solutions for ACR QA often depend on proprietary platforms. These require expensive licenses and operate within closed-source ecosystems, creating significant financial and accessibility barriers for research, educational, and clinical facilities worldwide.
+MacroQA directly addresses this fundamental gap. By providing a comprehensive, open-source implementation of ACR QA test suite within Fiji/ImageJ platform, MacroQA eliminates the requirement for commericla software. Implemented in the Jython scripting language, this design promotes transparency, verifiability, and accessibility, offering a cost-effective, shareable solution that supports both clinical best practices and reproducible research.
 
 # Installation
 1. Ensure that you have [Fiji](https://imagej.net/software/fiji/) installed, preferably with Java 8 runtime.

@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Geometric_accuracy.py
-# Version 1.0.1
+# Version 1.0.2
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -16,7 +16,6 @@ from ij import IJ, WindowManager
 from ij.io import OpenDialog
 from ij.measure import ResultsTable
 from ij.gui import WaitForUserDialog, Roi
-from ij import ImagePlus
 import sys
 
 # === All functions used in the script are defined here ===
@@ -43,22 +42,49 @@ def get_measurement(imp, instruction):
 
     Measures the length of the line and returns it.
     """
-    # Wait for the user to draw the ROI
-    wait = WaitForUserDialog("Draw a straight line", instruction)
-    wait.show()
+    # Loop until we get a valid straight-line ROI or the user cancels.
+    while True:
+        # Prompt the user to draw a straight line on the image.
+        wait = WaitForUserDialog("Draw a straight line and click OK to perform the measurement.", instruction)
+        wait.show()
 
-    roi = imp.getRoi()
-    if roi is None or roi.getType() != Roi.LINE:
-        IJ.error("Invalid ROI", "Please redraw a valid straight-line ROI.")
-        return None
+        roi = imp.getRoi()
 
-    IJ.run("Set Measurements...", "length")
-    IJ.run(imp, "Measure", "")
+        # If a valid line ROI was drawn, perform the measurement and return it.
+        if roi is not None:
+            try:
+                if roi.getType() == Roi.LINE:
+                    # Clear previous results to avoid reading stale entries.
+                    IJ.run("Clear Results")
+                    IJ.run("Set Measurements...", "length")
+                    IJ.run(imp, "Measure", "")
 
-    rt = ResultsTable.getResultsTable()
-    length = rt.getValue("Length", rt.size() - 1)
-    IJ.log("Length: {:.3f}".format(length))
-    return length
+                    rt = ResultsTable.getResultsTable()
+                    if rt is None or rt.size() == 0:
+                        IJ.log("Measurement failed: no results were produced.")
+                        # Offer retry
+                        retry = IJ.showMessageWithCancel("Measurement failed", "No measurement was recorded. Click OK to retry or Cancel to abort.")
+                        if retry:
+                            continue
+                        else:
+                            return None
+
+                    length = rt.getValue("Length", rt.size() - 1)
+                    IJ.log("Length: {:.3f}".format(length))
+                    return length
+            except Exception:
+                # In case roi.getType() or other calls fail, fall through to retry/cancel.
+                pass
+
+        # If we get here, the ROI is invalid or missing. Ask user to retry or cancel.
+        retry = IJ.showMessageWithCancel("Invalid ROI", "Please draw a valid straight-line ROI. Click OK to retry or Cancel to abort.")
+        if retry:
+            # Loop to allow user to redraw the ROI
+            continue
+        else:
+            # User chose to cancel the measurement
+            return None
+
 # === Function to close the Results window if open ===
 def close_result():
     """
@@ -99,6 +125,15 @@ def printImageType(imp):
         IJ.log("Image Type: ACR T1-weighted image.")
     elif tr >= 1000:
         IJ.log("Image Type: ACR T2-weighted image.")
+
+def fmt(val):
+    """Format a numeric measurement value or return 'NaN' for None."""
+    if val is None:
+        return 'NaN'
+    try:
+        return "{:.3f}".format(val)
+    except Exception:
+        return str(val)
         
 # === MAIN SCRIPT ===
 IJ.log("---- Geometric Accuracy Test ----")
@@ -117,13 +152,13 @@ printImageType(localizer)
 IJ.setTool("line")
 IJ.run("In [+]", "")
 IJ.run("In [+]", "")
-localizer_measurement = get_measurement(localizer, "LOCALIZER: Draw a vertical straight line.")
+localizer_measurement = get_measurement(localizer, "LOCALIZER: Draw a straight VERTICAL line. Click OK to perform the measurement.")
 localizer.close()
 
 # === T1w measurements ===
 IJ.log("=== ACR T1w measurements ===")
 WaitForUserDialog("Click OK to select the ACR T1w image.").show()
-t1w = open_dicom_file("Select ACR T1-weighted DICOM image (multi-slice)")
+t1w = open_dicom_file("Select ACR T1-weighted DICOM image")
 if t1w is None:
     sys.exit()
 
@@ -138,8 +173,8 @@ IJ.run("In [+]", "")
 t1w.setSlice(1)
 IJ.log("ACR T1w - Slice 1")
 
-t1_vert = get_measurement(t1w, "Slice 1: Draw a VERTICAL straight line")
-t1_horz = get_measurement(t1w, "Slice 1: Draw a HORIZONTAL straight line")
+t1_vert = get_measurement(t1w, "Slice 1: Draw a straight VERTICAL line. Click OK to perform the measurement.")
+t1_horz = get_measurement(t1w, "Slice 1: Draw a straight HORIZONTAL line. Click OK to perform the measurement.")
 
 # --- Slice 5 ---
 slices = t1w.getNSlices()     # z dimension
@@ -162,27 +197,27 @@ else:
     t1w.setSlice(5)
     IJ.log("ACR T1w - Slice 5")
 
-t1_diag1 = get_measurement(t1w, "Slice 5: Draw a DIAGONAL straight line (Diagonal 1)")
-t1_diag2 = get_measurement(t1w, "Slice 5: Draw a DIAGONAL straight line (Diagonal 2)")
-t1_vert_5 = get_measurement(t1w, "Slice 5: Draw a VERTICAL straight line")
-t1_horz_5 = get_measurement(t1w, "Slice 5: Draw a HORIZONTAL straight line")
+t1_diag1 = get_measurement(t1w, "Slice 5: Draw a straight DIAGONAL line (Diagonal 1). Click OK to perform the measurement.")
+t1_diag2 = get_measurement(t1w, "Slice 5: Draw a straight DIAGONAL line (Diagonal 2). Click OK to perform the measurement.")
+t1_vert_5 = get_measurement(t1w, "Slice 5: Draw a straight VERTICAL line. Click OK to perform the measurement.")
+t1_horz_5 = get_measurement(t1w, "Slice 5: Draw a straight HORIZONTAL line. Click OK to perform the measurement.")
 
 t1w.close()
 
 # === LOG FINAL ===
 IJ.log("=== SUMMARY ===")
-IJ.log("LOCALIZER: {:.3f}".format(localizer_measurement))
-IJ.log("T1 Slice 1 - Vertical: {:.3f}, Horizontal: {:.3f}".format(t1_vert, t1_horz))
-IJ.log("T1 Slice 5 - Diagonal 1: {:.3f}, Diagonal 2: {:.3f}".format(t1_diag1, t1_diag2))
-IJ.log("T1 Slice 5 - Vertical: {:.3f}, Horizontal: {:.3f}".format(t1_vert_5, t1_horz_5))
+IJ.log("LOCALIZER: {}".format(fmt(localizer_measurement)))
+IJ.log("T1 Slice 1 - Vertical: {}, Horizontal: {}".format(fmt(t1_vert), fmt(t1_horz)))
+IJ.log("T1 Slice 5 - Diagonal 1: {}, Diagonal 2: {}".format(fmt(t1_diag1), fmt(t1_diag2)))
+IJ.log("T1 Slice 5 - Vertical: {}, Horizontal: {}".format(fmt(t1_vert_5), fmt(t1_horz_5)))
 
-IJ.log("{:.3f}".format(localizer_measurement))
-IJ.log("{:.3f}".format(t1_vert))
-IJ.log("{:.3f}".format(t1_horz))
-IJ.log("{:.3f}".format(t1_diag1))
-IJ.log("{:.3f}".format(t1_diag2))
-IJ.log("{:.3f}".format(t1_vert_5))
-IJ.log("{:.3f}".format(t1_horz_5))
+IJ.log(fmt(localizer_measurement))
+IJ.log(fmt(t1_vert))
+IJ.log(fmt(t1_horz))
+IJ.log(fmt(t1_diag1))
+IJ.log(fmt(t1_diag2))
+IJ.log(fmt(t1_vert_5))
+IJ.log(fmt(t1_horz_5))
 
 
 WaitForUserDialog("Geometric accuracy test finished. Please collect the results.").show()

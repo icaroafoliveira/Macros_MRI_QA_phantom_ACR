@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: High_contrast_spatial_resolution.py
-# Version 1.0.1
+# Version 1.0.2
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -141,7 +141,7 @@ imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 
 if imp is None:
     IJ.error("No image open.")
-    raise SystemExit
+    raise SystemExit()
 
 # Identify image type by slice count
 printImageType(imp)
@@ -156,7 +156,7 @@ if imp.getNSlices() > 11:
     slice_num = IJ.getNumber("Enter the slice number to analyze (1 to %d):" % imp.getNSlices(), 12)
     if slice_num is None or slice_num < 1 or slice_num > imp.getNSlices():
         IJ.error("Invalid slice number.")
-        raise SystemExit
+        raise SystemExit()
     imp.setSlice(int(slice_num))
     IJ.log("Slice set to %d." % int(slice_num))
 else:
@@ -179,32 +179,42 @@ if win is not None:
     win.pack()  # force the window to resize
     
 # ===== Step 2: user selects the ROI =====
-dlg = WaitForUserDialog(
-    "Select the area for zoom.\n"
-    "Draw a ROI in the region you want to enlarge and click OK.")
-dlg.show()
-IJ.log("Zoom adjusted to the selected ROI")
+while True:
+    dlg = WaitForUserDialog(
+        "Select the area for zoom.\n"
+        "Draw a ROI in the region you want to enlarge and click OK.")
+    dlg.show()
+    IJ.log("Zoom adjusted to the selected ROI")
 
-roi = imp.getRoi()
-if roi is None:
-    IJ.error("No ROI was selected!")
-    raise SystemExit
-else:
-    bounds = roi.getBounds()
-    canvas = imp.getCanvas()
-    if canvas is not None:
-        # Set the canvas source rectangle to the ROI bounds (focus view on ROI)
-        canvas.setSourceRect(Rectangle(bounds.x, bounds.y, bounds.width, bounds.height))
-        imp.updateAndDraw()
-        
-        # Automatically zoom in until the ROI fills the source view
-        while (canvas.getSrcRect().width > bounds.width or 
-               canvas.getSrcRect().height > bounds.height):
-            canvas.zoomIn(bounds.x + bounds.width // 2, bounds.y + bounds.height // 2)
-            canvas.zoomIn(bounds.x + bounds.width // 2, bounds.y + bounds.height // 2)
-            if (canvas.getSrcRect().width <= bounds.width and 
-                canvas.getSrcRect().height <= bounds.height):
-                break
+    roi = imp.getRoi()
+
+    # If the user drew an ROI, try to apply it and then continue the script
+    if roi is not None:
+        try:
+            bounds = roi.getBounds()
+            canvas = imp.getCanvas()
+            if canvas is not None:
+                # Set the canvas source rectangle to the ROI bounds (focus view on ROI)
+                canvas.setSourceRect(Rectangle(bounds.x, bounds.y, bounds.width, bounds.height))
+                imp.updateAndDraw()
+                # Automatically zoom in until the ROI fills the source view
+                while (canvas.getSrcRect().width > bounds.width or 
+                       canvas.getSrcRect().height > bounds.height):
+                    canvas.zoomIn(bounds.x + bounds.width // 2, bounds.y + bounds.height // 2)
+                    canvas.zoomIn(bounds.x + bounds.width // 2, bounds.y + bounds.height // 2)
+                    if (canvas.getSrcRect().width <= bounds.width and 
+                        canvas.getSrcRect().height <= bounds.height):
+                        break
+            # ROI successfully handled; exit loop and proceed
+            break
+        except Exception:
+            # Fall through to the retry prompt below
+            IJ.log("Error applying ROI — prompting to retry.")
+
+    # No valid ROI yet: show a message and force the user to retry
+    IJ.showMessage("Invalid ROI", "Please draw a rectangular ROI and press OK to continue.")
+    # Loop continues until an ROI is drawn
+    continue
 
 # ===== Step 3: Automatic window/level adjustment =====
 l, w = 450.0, 150.0
@@ -223,10 +233,27 @@ gd = GenericDialog("Instructions")
 gd.addMessage("WARNING!", Font("SansSerif", Font.BOLD, 20))
 gd.addMessage("Adjust level and window in the next step until the holes in the resolution insert are distinguishable from one another.", Font("SansSerif", Font.ITALIC, 12))
 gd.addMessage("Press 'OK' to continue.", Font("SansSerif", Font.ITALIC, 12))
+# Best-effort: hide the Cancel button so only OK is visible.
+try:
+    # Preferred: if GenericDialog exposes getButtons()
+    buttons = gd.getButtons()
+    for b in buttons:
+        try:
+            lbl = b.getLabel()
+        except:
+            lbl = ""
+        if lbl and lbl.lower().startswith("cancel"):
+            b.setVisible(False)
+except:
+    try:
+        # Fallback: some ImageJ builds expose cancelButton attribute
+        if getattr(gd, "cancelButton", None) is not None:
+            gd.cancelButton.setVisible(False)
+    except:
+        # If neither approach works, ignore and show dialog normally
+        pass
+
 gd.showDialog()
-if gd.wasCanceled():
-    IJ.log("Cancelled.")
-    raise SystemExit
 
 dlg = WaitForUserDialog(
     "The three sets of dot patterns forming squares have different hole sizes.\n"

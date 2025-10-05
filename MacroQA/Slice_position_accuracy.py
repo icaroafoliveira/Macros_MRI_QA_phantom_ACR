@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Slice_position_accuracy.py
-# Version 1.0.1
+# Version 1.0.2
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -12,9 +12,10 @@
 
 # Required libraries
 from ij import IJ, WindowManager
-from ij.gui import WaitForUserDialog, Roi, Line
+from ij.gui import WaitForUserDialog, Roi, GenericDialog
 from ij.io import OpenDialog
 from java.lang import Math
+from java.awt import Font
 from ij.measure import ResultsTable
 from ij.process import ImageStatistics
 import math
@@ -144,49 +145,6 @@ def open_dicom_file(prompt):
     imp.show()
     return imp
 
-# === Function to adjust window/level ===
-# def adjust_window_level(imp, level, window):
-#     """Sets the display range (window/level) for the image."""
-#     min_display = level - window / 2
-#     max_display = level + window / 2
-#     imp.setDisplayRange(min_display, max_display)
-#     imp.updateAndDraw()
-
-def adjust_window_level(imp, level, window):
-    """
-    Adjusts display window/level based on phantom signal.
-    The level is set to ~half the mean signal in the bright phantom region.
-    The window is scaled relative to that mean.
-    """
-    ip = imp.getProcessor()
-    stats = ip.getStatistics(ImageStatistics.MEAN | ImageStatistics.MIN_MAX)
-
-    mean_signal = stats.mean
-    min_signal = stats.min
-
-    # Estimate level as ~half the mean bright signal
-    level = 0.5 * mean_signal
-
-    # Define window width (heuristic: full mean or scaled)
-    window = window_scale * mean_signal
-
-    min_display = max(min_signal, level - window / 2.0)
-    max_display = level + window / 2.0
-
-    imp.setDisplayRange(min_display, max_display)
-    imp.updateAndDraw()
-    IJ.log("Window/Level set to min=%.2f, max=%.2f" % (min_display, max_display))
-    
-
-    # """Sets the display range (window/level) for the image."""
-    # stats = imp.getProcessor().getStatistics()
-    # img_min, img_max = stats.min, stats.max
-
-    # min_display = max(img_min, level - window / 2)
-    # max_display = min(img_max, level + window / 2)
-
-    # imp.setDisplayRange(min_display, max_display)
-    # imp.updateAndDraw()
     
 # === Function to print image type based on TR value ===
 def printImageType(imp):
@@ -259,7 +217,9 @@ IJ.run("In [+]", "")
 IJ.run("In [+]", "")
 
 # Adjust Window/Level: window = 10, level = 1000
-adjust_window_level(imp, level=1000, window=10)
+IJ.run("Window/Level...")
+
+# usually the window/level gets stuck, so we run both commands to ensure it opens 
 IJ.run("Brightness/Contrast...")
 IJ.run("Window/Level...")
 
@@ -267,10 +227,42 @@ IJ.run("Window/Level...")
 zoom_to_rect_pixels(x = 100, y = 65, w = 80, h = 10)
 
 # Provide instructions and wait for user action
-WaitForUserDialog("Slice Position Accuracy Test.\n"
-"If the bar on the right is longer, the slice is mis-positioned superiorly; this bar length difference is assigned a positive value.\n"  
-"If the bar on the left is longer, meaning the slice is mis-positioned inferiorly; this bar length difference is assigned a negative value.").show()
-medida1 = get_measurement(imp, "Slice 1 - Draw the vertical straight line to get the height difference between the bars.\n"
+gd = GenericDialog("Slice position accuracy instructions")
+gd.addMessage("Slice Position Accuracy Test: Procedure and interpretation", Font("SansSerif", Font.BOLD, 18))
+gd.addMessage("STEP 1: Adjust the Window/Level (W/L)", Font("SansSerif", Font.BOLD, 14))
+gd.addMessage("To distinguish the bars from the background, adjust W/L:", Font("SansSerif", Font.PLAIN, 14))
+gd.addMessage("- Set the Window close to minimum (e.g., 20).\n"
+              "- Shift the Level also towards lower values.\n"
+              "- The slope line in the histogram should then appear nearly vertical at the left edge.", Font("SansSerif", Font.ITALIC, 12))
+gd.addMessage("STEP 2: Position the measurement tool", Font("SansSerif", Font.BOLD, 14))
+gd.addMessage("- Position the measurement tool to the center of longest bar, aiming to measure the length difference between both bars.", Font("SansSerif", Font.ITALIC, 14))
+gd.addMessage("STEP 3: Interpretation", Font("SansSerif", Font.BOLD, 14))
+gd.addMessage("- If the bar on the right is longer, the slice is mis-positioned superiorly; this bar length difference is assigned a positive value.\n"
+              "- If the bar on the left is longer, meaning the slice is mis-positioned inferiorly; this bar length difference is assigned a negative value.\n"
+              "- A zero difference indicates perfect positioning.", Font("SansSerif", Font.ITALIC, 14))
+gd.addMessage("Click 'OK' to continue.", Font("SansSerif", Font.ITALIC, 16))
+# Best-effort: hide the Cancel button so only OK is visible.
+try:
+    # Preferred: if GenericDialog exposes getButtons()
+    buttons = gd.getButtons()
+    for b in buttons:
+        try:
+            lbl = b.getLabel()
+        except:
+            lbl = ""
+        if lbl and lbl.lower().startswith("cancel"):
+            b.setVisible(False)
+except:
+    try:
+        # Fallback: some ImageJ builds expose cancelButton attribute
+        if getattr(gd, "cancelButton", None) is not None:
+            gd.cancelButton.setVisible(False)
+    except:
+        # If neither approach works, ignore and show dialog normally
+        pass
+gd.showDialog()
+
+measurement1 = get_measurement(imp, "Slice 1 - Draw the vertical straight line to get the height difference between the bars.\n"
 "Press 'OK' only after drawing the straight line.")
 
 # --- Process Eleventh Slice (Slice 11) ---
@@ -299,7 +291,7 @@ else:
     imp.setSlice(int(slice_num))
     IJ.log("Slice set to %d." % int(slice_num))
 
-medida2 = get_measurement(imp, "Slice 11 - Draw the vertical straight line to get the height difference between the bars.\n"
+measurement2 = get_measurement(imp, "Slice 11 - Draw the vertical straight line to get the height difference between the bars.\n"
 "Press 'OK' only after drawing the straight line.")
 
 # --- Finalization and Results ---
@@ -310,7 +302,7 @@ close_result()
 WaitForUserDialog("Slice Position Accuracy Test finished. Collect the results.\n").show()
 
 IJ.run("Clear Results")
-IJ.log("Slice 1: {:.3f}".format(medida1))
-IJ.log("Slice 11: {:.3f}".format(medida2))
+IJ.log("Slice 1: {:.3f}".format(measurement1))
+IJ.log("Slice 11: {:.3f}".format(measurement2))
 IJ.log("---- End of the Slice Position Accuracy Test ----")
 IJ.log("")
