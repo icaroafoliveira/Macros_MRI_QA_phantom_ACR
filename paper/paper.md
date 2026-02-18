@@ -39,10 +39,36 @@ bibliography: paper.bib
 MacroQA is an open-source ImageJ/Fiji macro package that implements the American College of Radiology (ACR) quality assurance (QA) tests for MRI phantoms. The project was developed with academic and pedagogical goals in mind, and it aims to simplify and standardize phantom testing. By leveraging Fiji/ImageJ's built-in functionality, MacroQA performs the ACR phantom tests quickly and reproducibly, completing the QA workflow within minutes. As a free and accessible alternative to proprietary software, MacroQA lowers barriers to adoption, promotes reproducibility, and supports collaborative development in the MRI research and clinical communities.
 
 # Statement of need
-Magnetic resonance imaging (MRI) is indispensable in modern medicine and neuroscience, enabling diverse applications from clinical diagnosis to the study of functional brain connectivity. [@dumoulin_ultra-high_2018; @granziera_quantitative_2021; @ruber_mri_2018; @macdonald_cerebrovascular_2015].
-To uphold image quality and ensure the reproducibility of results-a central concern across the MR community- a robust Quality Assurance (QA) and Quality Control (QC) procedures are essential [@epistatou_automated_2020; @vogelbacher_labqa2go_2019; @stocker_reproducibility_2025; @sun_open_2015]. The most widely adopted standards is the QA program established by the American College of Radiology (ACR), which relies on a dedicated accreditaion phantom.
-Despite the critical need for standardization, existing software solutions for ACR QA often depend on proprietary platforms. These require expensive licenses and operate within closed-source ecosystems, creating significant financial and accessibility barriers for research, educational, and clinical facilities worldwide.
-MacroQA directly addresses this fundamental gap. By providing a comprehensive, open-source implementation of ACR QA test suite within Fiji/ImageJ platform, MacroQA eliminates the requirement for commericla software. Implemented in the Jython scripting language, this design promotes transparency, verifiability, and accessibility, offering a cost-effective, shareable solution that supports both clinical best practices and reproducible research.
+MacroQA is a Jython program designed to perform Quality Assurance (QA) procedures for magnetic resonance imaging (MRI). Given how crucial MRI has become in modern medicine and neuroscience—ranging from clinical diagnoses to exploring functional brain connectivity—it’s vital to ensure the quality and consistency of the images produced [@dumoulin_ultra-high_2018; @granziera_quantitative_2021; @ruber_mri_2018; @macdonald_cerebrovascular_2015; @stocker_reproducibility_2025]. This is where robust Quality Assurance (QA) and Quality Control (QC) procedures come into play.
+
+The procedures incorporated in MacroQA align with the American College of Radiology (ACR) guidelines, which utilize a specialized accreditation phantom for their QA program. Many current software solutions for ACR QA are tied to vendor-specific or proprietary systems, which often come with high licensing costs or operate within closed-source frameworks, imposing financial and accessibility challenges for research, education, and clinical practice.
+
+MacroQA bridges this gap by offering an open-source solution of the ACR QA test suite through the Fiji/ImageJ platform, effectively removing dependency on commercial software. Developed using Jython scripting language, MacroQA emphasizes transparency, verifiability, and accessibility, providing a cost-effective and shareable tool that supports both clinical best practices and reproducible research.
+
+# Statement of the Field
+There are alternative open-source frameworks out there, often built on MATLAB applications [@epistatou_automated_2020; @vogelbacher_labqa2go_2019; @sun_open_2015]. For instance, LAB-QA2GO [@vogelbacher_labqa2go_2019] is a virtual machine with fully automated analyses with scripts written in MATLAB. And there are other MATLAB-based solutions like [ref] and OSAQA[@sun_open_2015], which also deliver fully automated functionalities for key QC tests. While these tools can be highly automated, they come with licensing issues since MATLAB isn’t free and requires users to have programming knowledge. Additionally, automated pipelines may obscure intermediate steps, making it harder for users, especially those still learning the ACR QA procedures, to inspect and understand individual QC measurements.
+
+MacroQA was designed to address these challenges. Instead of relying on proprietary environments or enforcing strict automation, it provides structured automation within the widely-used, open-source Fiji (ImageJ) platform. This design promotes reproducibility while allowing users to interact and visualize data, verify ROI placements, and maintain transparency in methodology. 
+The value of MacroQA lies in offering a complete, modular, and openly accessible version of the ACR MRI QA protocol that finds a balance between automation and user interpretation, something that current proprietary or MATLAB-based solutions fail to achieve.
+
+# Software design
+
+MacroQA is built in Jython (www.jython.org), a Python implementation for the Java platform, and runs within Fiji/ImageJ. Fiji was selected for its wide usage, free availability, and cross-platform. Each QC test is implemented as an independent macro, making development and installation more straightforward. After installation, users can find macros under a dedicated "MacroQA" menu.
+
+- **Inputs:** DICOM images acquired with the ACR accreditation phantom.
+- **Outputs:** numerical results displayed in the Fiji log window and optionally saved to disk.
+
+MacroQA is distributed under the GNU General Public License v3.0 (GPL-3.0), which ensures the code remains free to use, modify, and redistribute under the license terms.
+
+# Research Impact Statement
+
+MacroQA has been validated across multiple clinical MRI systems (3T and 1.5T) and is now part of our weekly QA procedures. Benchmarking demonstrated substantial time savings compared to manual analysis while maintaining high repeatability, quantified using normalized repeatability coefficients across several weeks. All ACR-defined tolerance thresholds were consistently met, supporting reliability for longitudinal monitoring. 
+
+These findings have been recognized and will be presented at the upcoming International Society of Magnetic Resonance in Medicine (ISMRM) conference in 2026.
+
+The software also addresses regulatory compliance requirements, covering all tests required by the American College of Radiology (ACR) and ANVISA in Brazil. This makes it useful not just in research settings, but also in clinical settings for accreditation purposes.
+
+To make adoption easier for external users, MacroQA comes with thorough documentation, example datasets, and reproducible materials. Its implementation with Fiji ensures it is compatible with a solid user base in biomedical imaging.
 
 # Installation
 1. Ensure that you have [Fiji](https://imagej.net/software/fiji/) installed, preferably with Java 8 runtime.
@@ -190,19 +216,13 @@ Users are encouraged to first review and follow the [ACR MRI Phantom testing gui
 
 **Image type:** ACR T1-weighted (T1w) — note: SNR may require additional acquisitions or specific measurement regions
 
-## Software description
-
-MacroQA is implemented in Jython (www.jython.org), the Python implementation for the Java platform, and runs within Fiji/ImageJ. Fiji was chosen because it is widely used, free, and cross-platform. Each QC test is implemented as an independent macro, which simplifies development and installation. After installation, the macros appear in Fiji's menu under a dedicated "MacroQA" submenu.
-
-- **Inputs:** DICOM images acquired with the ACR accreditation phantom.
-- **Outputs:** numerical results displayed in the Fiji log window and optionally saved to disk.
-
-MacroQA is distributed under the GNU General Public License v3.0 (GPL-3.0), which ensures the code remains free to use, modify, and redistribute under the license terms.
-
 ## Availability
 MacroQA is publicly available on [GitHub](https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR). The tool is distributed under the GNU General Public License v3.0 (GPL-3.0). Installation and usage instructions are provided in the repository README. We welcome contributions and feedback from the community — please open an issue to report bugs or request features; pull requests are also welcome.
 
-## Acknowledgements
-GBV, VHCG, PHTCO, and MSQ (students in the Medical Physics program at the University of São Paulo) contributed nearly equally to coding, software development, and manuscript preparation during their internship. IAFO conceived the idea for MacroQA, contributed to coding and writing, and provided supervision and mentorship throughout the students' internship at the MRI service of the Ribeirão Preto Medical School, University of São Paulo.
+# AI usage disclosure
+Limited AI-assisted language editing was used during manuscript preparation to improve clarity and grammar (Grammarly). All technical content, software design decisions, validation procedures, and scientific interpretations were written and verified by the authors.
+
+# Acknowledgements
+GBV, VHCG, PHTCO, and MSQ contributed nearly equally to coding, software development, and manuscript preparation during their internship. IAFO conceived the idea for MacroQA, contributed to coding and writing, and provided supervision and mentorship throughout the project.
 
 # References
