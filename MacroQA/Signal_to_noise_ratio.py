@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Signal_to_noise_ratio.py
-# Version 1.0.2
+# Version 1.0.3
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -18,6 +18,8 @@ from java.lang import Math
 from ij.measure import ResultsTable
 import math
 from ij.plugin import ImageCalculator
+import os
+import csv
 from ij.measure import Measurements
 from ij.plugin.frame import RoiManager
 from java.awt import Window, Font
@@ -141,8 +143,11 @@ def subtract_two_images_via_calculator():
 
 # --- Main Script Execution ---
 
-IJ.log("---- Signal to Noise Ratio Test ----")
-
+IJ.log("========================================")
+IJ.log("TEST: Signal to Noise Ratio (SNR)")
+IJ.log("========================================")
+IJ.log("")
+IJ.log("[SETUP]")
 # Perform image subtraction
 result, impA = subtract_two_images_via_calculator()
 
@@ -150,6 +155,25 @@ result, impA = subtract_two_images_via_calculator()
 if impA is None or result is None:
     IJ.error("Image processing failed.")
     raise SystemExit
+
+# Extract DICOM metadata (exam date and station name)
+exam_date = "N/A"
+info = impA.getInfoProperty()
+
+if info is not None:
+	try:
+		# Extract exam date (0008,0020)
+		date_start = info.find("0008,0020")
+		if date_start != -1:
+			date_value_start = info.find(":", date_start) + 1
+			date_end = info.find("\n", date_value_start)
+			exam_date = info[date_value_start:date_end].strip()
+	except:
+		pass
+	
+IJ.log("Exam Date: " + exam_date)
+IJ.log("")
+
 printImageType(impA)
 
 
@@ -249,12 +273,44 @@ SNR = mean_ref / std_ref
 # --- Display Final Results ---
 dlg=WaitForUserDialog("SNR test finished, collect the results.")
 dlg.show()
+
+# Capture image directory before closing
+try:
+    fi = impA.getOriginalFileInfo()
+    image_dir = os.path.dirname(fi.directory)
+except:
+    image_dir = os.getcwd()
+
 impA.close()
 result.close()
 
-IJ.log("Mean: {:.3f}".format(mean_ref))
-IJ.log("Standard Deviation: {:.3f}".format(std_ref))
-IJ.log("SNR: {:.3f}".format(SNR))
-IJ.run("Clear Results")
-IJ.log("---- End of the SNR test ----")
+IJ.log("")
+IJ.log("[PROCESS]")
+IJ.log("Mean Signal (200 cm^2 ROI):  {:.3f}".format(mean_ref))
+IJ.log("Noise Std Dev (Difference): {:.3f}".format(std_ref))
+IJ.log("")
+IJ.log("[RESULTS]")
+IJ.log("SNR:                        {:.3f}".format(SNR))
+IJ.log("")
+IJ.log("[OUTPUT]")
+
+# Save in CSV
+if 'SNR' in locals():
+	
+	csv_filename = os.path.join(image_dir, "QA_Results_{0}.csv".format(exam_date))
+	
+	try:
+		file_exists = os.path.isfile(csv_filename)
+		
+		with open(csv_filename, 'a') as f:
+			writer = csv.writer(f)
+			
+			snr_str = "{:.3f}".format(SNR) if 'SNR' in locals() else "NaN"
+			writer.writerow(['Signal_to_Noise_Ratio', snr_str])
+		
+		IJ.log("Results saved to: {}".format(csv_filename))
+	except Exception as e:
+		IJ.log("Error saving CSV: {}".format(str(e)))
+else:
+	IJ.log("Warning: Could not save CSV (SNR value not found)")
 IJ.log("")

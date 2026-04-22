@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Image_intensity_uniformity.py
-# Version 1.0.2
+# Version 1.0.3
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -26,6 +26,8 @@ from ij.measure import Measurements
 from ij.plugin.frame import RoiManager
 from javax.swing import SwingUtilities
 import math
+import os
+import csv
 
 # === All functions used in the script are defined here ===
 
@@ -126,14 +128,66 @@ def printImageType(imp):
     elif tr >= 1000:
         IJ.log("Image Type: ACR T2-weighted image.")
 
+def check_limits(value, imp):
+    """Checks if the value meets the threshold for PASS/FAIL.
+    Returns "PASS" if value is within tolerance of expected, otherwise "FAIL".
+    """
+    
+    info = imp.getInfoProperty()
+    mag_field_strength = None
+    if info is not None:
+        for line in info.split("\n"):
+            if line.startswith("0018,0087"):  # Magnetic Field Strength tag
+                try:
+                    mag_field_strength = line.split(":")[1].strip()
+                except:
+                    mag_field_strength = None
+                    IJ.log("Could not parse Magnetic Field Strength value.")
+    
+    if mag_field_strength < "3":
+        tol = 85
+    else:
+        tol = 80
+        
+    if value is None:
+        return "NaN"
+    elif abs(value) <= tol:
+        return "FAIL"
+    else:
+        return "PASS"
+
 # ---- Main Procedure ----
-IJ.log("---- Image Intensity Uniformity Test ----")
+IJ.log("========================================")
+IJ.log("TEST: Image Intensity Uniformity")
+IJ.log("========================================")
+IJ.log("")
+IJ.log("[SETUP]")
+IJ.log("")
+
 WaitForUserDialog("Open the T1 or T2 image and perform the uniformity test").show()
 imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 
 if imp is None:
     IJ.error("No image open.")
     raise SystemExit
+
+# Extract DICOM metadata (exam date and station name)
+exam_date = "N/A"
+info = imp.getInfoProperty()
+
+if info is not None:
+	try:
+		# Extract exam date (0008,0020)
+		date_start = info.find("0008,0020")
+		if date_start != -1:
+			date_value_start = info.find(":", date_start) + 1
+			date_end = info.find("\n", date_value_start)
+			exam_date = info[date_value_start:date_end].strip()
+	except:
+		pass
+
+IJ.log("Exam Date: " + exam_date)
+IJ.log("")
 
 # Identify image type
 printImageType(imp)
@@ -246,7 +300,12 @@ except:
 gd.showDialog()
 
 mean_ref = measure_roi_mean(imp)
-IJ.log("Initial mean (large ROI): {:.3f}".format(mean_ref))
+IJ.log("")
+IJ.log("[MEASUREMENTS]")
+IJ.log("")
+IJ.log("ROI Statistics (Signal Intensity)")
+IJ.log("")
+IJ.log("  Large ROI:   {:.3f}".format(mean_ref))
 
 # ===== Step 4: Low-signal adjustment =====
 stats_full = imp.getStatistics()
@@ -270,7 +329,7 @@ dlg = WaitForUserDialog("Position small ROI - low signal",
 dlg.show()
 
 low_signal = measure_roi_mean(imp)
-IJ.log("Low signal mean: {:.3f}".format(low_signal))
+IJ.log("  Low signal ROI:   {:.3f}".format(low_signal))
 
 # Ensure large ROI is saved
 imp.setRoi(roi_large)
@@ -293,15 +352,15 @@ dlg.show()
 
 rm.addRoi(roi_small_high)
 high_signal = measure_roi_mean(imp)
-IJ.log("High signal mean: {:.3f}".format(high_signal))
+IJ.log("  High signal ROI:   {:.3f}".format(high_signal))
+IJ.log("")
 
 # ===== Step 6: Calculate PIU =====
 if (high_signal + low_signal) == 0:
     IJ.log("Error: high + low == 0, unable to calculate PIU.")
 else:
     piu = 100.0 * (1.0 - (abs(high_signal - low_signal) / abs(high_signal + low_signal)))
-    IJ.log("Calculated PIU: {:.2f}".format(piu))
-    IJ.log("{:.2f}".format(piu))
+    IJ.log("  Calculated PIU: {:.2f}".format(piu))
 
 # Reminder to close ROI Manager
 gd = GenericDialog("Instructions")
@@ -331,7 +390,43 @@ gd.showDialog()
 dlg = WaitForUserDialog("Uniformity test completed, collect the results.")
 dlg.show()
 close_wl()
+
+# Capture image directory before closing
+try:
+    fi = imp.getOriginalFileInfo()
+    image_dir = os.path.dirname(fi.directory)
+except:
+    image_dir = os.getcwd()
+
 imp.close()
 IJ.run("Clear Results")
-IJ.log("---- End of the Image Intensity Uniformity Test ----")
+IJ.log("")
+IJ.log("[RESULTS]")
+IJ.log("")
+IJ.log("Percent Intensity Uniformity (PIU):")
+IJ.log("  Measured:  {:.2f}%".format(piu))
+IJ.log("  Expected:  >= 80% (3T) and >= 85% (1.5T)")
+IJ.log("  Result:    [{}]".format(check_limits(piu, imp)))
+IJ.log("")
+IJ.log("[OUTPUT]")
+
+# Save in CSV
+if 'piu' in locals():
+	
+	csv_filename = os.path.join(image_dir, "QA_Results_{0}.csv".format(exam_date))
+	
+	try:
+		file_exists = os.path.isfile(csv_filename)
+		
+		with open(csv_filename, 'a') as f:
+			writer = csv.writer(f)
+			
+			piu_str = "{:.2f}".format(piu) if 'piu' in locals() else "NaN"
+			writer.writerow(['Image_Intensity_Uniformity_PIU_Percent', piu_str])
+		
+		IJ.log("Results saved to: {}".format(csv_filename))
+	except Exception as e:
+		IJ.log("Error saving CSV: {}".format(str(e)))
+else:
+	IJ.log("Warning: Could not save CSV (PIU value not found)")
 IJ.log("")

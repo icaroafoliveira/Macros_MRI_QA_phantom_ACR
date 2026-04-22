@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Central_frequency.py
-# Version 1.0.2
+# Version 1.0.3
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -12,6 +12,10 @@
 from ij import IJ
 from ij.io import OpenDialog
 from ij.gui import WaitForUserDialog
+import csv
+import os
+from datetime import datetime
+
 
 # === All functions used in the script are defined here ===
 # === Function to print the image type based on TR value ===
@@ -46,8 +50,9 @@ def printImageType(imp):
     elif tr >= 1000:
         IJ.log("Image Type: ACR T2-weighted image.")
 
-
 # === Start of the main script ===
+
+WaitForUserDialog("Select T1w image for Central Frequency test.").show()
 
 # call open dialog to get the DICOM path
 open_dia_file = OpenDialog("Open T1w image", None)
@@ -66,10 +71,28 @@ imp = IJ.openImage(path)
 info = imp.getInfoProperty()
 
 # Initiate the log 
-IJ.log("---- Central Frequency Test ----")
+IJ.log("========================================")
+IJ.log("TEST: Central Frequency")
+IJ.log("========================================")
+IJ.log("")
+IJ.log("[SETUP]")
 
 # Make sure that the image is the expected one
 printImageType(imp)
+
+# Extract exam date from DICOM header (tag 0008,0020 - Study Date)
+exam_date = "N/A"
+try:
+	date_start = info.find("0008,0020")
+	if date_start != -1:
+		date_value_start = info.find(":", date_start) + 1
+		date_end = info.find("\n", date_value_start)
+		exam_date = info[date_value_start:date_end].strip()
+except:
+	pass
+
+IJ.log("Exam Date: " + exam_date)
+IJ.log("")
 	
 # Imaging Frequency tag is (0018, 0084)
 # We need to parse the header string to find this value
@@ -91,18 +114,50 @@ if start_index != -1:
 	try:
 		# Convert the string to a floating-point number
 		central_frequency_mhz = float(central_freq_str)
-		IJ.log("The central frequency (Imaging Frequency) is: " + str(central_frequency_mhz) + " MHz")
-		IJ.log(str(central_frequency_mhz))
 		dlg=WaitForUserDialog("Central Frequency test finished, collect the results.")
 		dlg.show()
-		IJ.log("---- End of the Central Frequency test ----")
-		IJ.log("")
 		
 	except ValueError:
 		IJ.log("Could not convert the value to a number.")
+  
+	IJ.log("[RESULTS]")
+	IJ.log("Central frequency: " + str(central_frequency_mhz) + " MHz")
 else:
 	IJ.log("Imaging Frequency (0018, 0084) tag not found in the DICOM header.")
+ 
+IJ.log("")
+IJ.log("[OUTPUT]")
+
+# Save in CSV
+if 'central_frequency_mhz' in locals():
+	try:
+		image_dir = os.path.dirname(path)
+	except NameError:
+		image_dir = os.getcwd()
+	
+	csv_filename = os.path.join(image_dir, "QA_Results_{0}.csv".format(exam_date))
+	
+	try:
+		# Check if file exists to determine if we need to write headers
+		file_exists = os.path.isfile(csv_filename)
 		
+		with open(csv_filename, 'a') as f:
+			writer = csv.writer(f)
+			
+			# Write header and data on same row
+			writer.writerow(['Central_Frequency_MHz', str(central_frequency_mhz)])
+		
+		IJ.log("Results saved to: {}".format(csv_filename))
+	except Exception as e:
+		IJ.log("Error saving CSV: {}".format(str(e)))
+else:
+	IJ.log("Warning: Could not save CSV (central frequency not found)")
+
+IJ.log("")
+
+
+
+
 # Close the image without saving changes
 if 'imp' in locals():
 	imp.close()

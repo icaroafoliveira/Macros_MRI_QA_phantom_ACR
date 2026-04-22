@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Slice_position_accuracy.py
-# Version 1.0.2
+# Version 1.0.3
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -19,6 +19,8 @@ from java.awt import Font
 from ij.measure import ResultsTable
 from ij.process import ImageStatistics
 import math
+import os
+import csv
 
 
 # === All functions used in the script are defined here ===
@@ -76,57 +78,49 @@ def zoom_to_rect_pixels(x, y, w, h, set_line_tool=True, clear_roi_after=True):
         imp.killRoi()
 
 # === Function to get the measurement from the user-drawn line ===
-def get_measurement(imp, instruction, cutoff_px=127):
+def get_measurement(imp):
     """
     Prompts the user to draw a line and measures its length.
-    The length is then signed based on its position relative to a central cutoff point.
+    The length is then signed based on the measurement of both bars, first the left bar and then the right bar.
     """
+    
     # set tool line and waits the user
     IJ.setTool("line")
-    WaitForUserDialog("Draw the straight line.", instruction).show()
-
-    roi = imp.getRoi()
-    if roi is None or roi.getType() != Roi.LINE:
-        IJ.error("Invalid ROI", "If the difference is zero in fact, press 'OK' to continue.")
-        return int(0)
-
-    # measure: length + centroid (to get 'X' on the table)
-    IJ.run("Set Measurements...", "length centroid")
-    IJ.run(imp, "Measure", "")
-
-    rt = ResultsTable.getResultsTable()
-    row = rt.size() - 1
-
-    length = rt.getValue("Length", row)
-
-    # get X at the centroid coming from own measure
-    x_val = rt.getValue("X", row)  # return NaN if column doesn't exist
-    if math.isnan(x_val):
-        # rare fallback: if for any reason the program doesn't get 'X', use the geometric medium point
-        x_val = (roi.getX1() + roi.getX2()) / 2.0
-        # OBS: already in pixels
-
-    # converts X measured as pixels if the image is calibrated (DICOM etc.)
-    cal = imp.getCalibration()
-    pw = cal.pixelWidth if (cal and cal.pixelWidth) else 1.0
-    # if 'X' came in physical units, dividing by pixelWidth brings it to pixels;
-    # if it was already in pixels, pw=1.0 and nothing changes.
-    x_px = x_val / pw
-
-    # Apply signal rule as half left (x > 127)
-    # The length is positive if the measurement is on the left side of the image and negative on the right
-    # (or vice-versa, depending on the image convention), indicating mis-positioning direction.
-    signed_length = -length if (x_px > float(cutoff_px)) else length
-
-    # optional: refresh table to reflect the signal value
-    try:
-        rt.setValue("Length", row, signed_length)
-        rt.show("Results")
-    except:
-        pass
-
-    #IJ.log("X_centroide(px)=%.3f  cutoff=%d  comprimento=%.3f" % (x_px, cutoff_px, signed_length))
-    return signed_length
+    
+    # Step 1: Prompt user to draw a line and measure it
+    
+    while True:
+        WaitForUserDialog("Draw a straight line in the Left vertical bar.").show()
+        roi1 = imp.getRoi()
+        if roi1 is None or roi1.getType() != Roi.LINE:
+            IJ.showMessage("Invalid ROI", "The drawn ROI is not a straight line.")
+            continue
+        imp.setRoi(roi1)
+        IJ.run("Measure")
+        length1 = roi1.getLength()
+        break
+    
+    IJ.log("   {}:  {:.3f}".format("Left bar", length1))
+    
+    # Step 2: Prompt user to draw a line in the right bar and measure it
+    while True:
+        WaitForUserDialog("Draw a straight line in the Right vertical bar.").show()
+        roi2 = imp.getRoi()
+        if roi2 is None or roi2.getType() != Roi.LINE:
+            IJ.showMessage("Invalid ROI", "The drawn ROI is not a straight line.")
+            continue
+        imp.setRoi(roi2)
+        IJ.run("Measure")
+        length2 = roi2.getLength()
+        break
+      
+    IJ.log("   {}:  {:.3f}".format("Right bar", length2))
+    
+    diff = length2 - length1
+    
+    IJ.log("   {}:  {:.3f}".format("Length difference (Right - Left)", diff))
+    
+    return diff
 
 # === Function to open a DICOM file via dialog ===
 def open_dicom_file(prompt):
@@ -177,9 +171,27 @@ def printImageType(imp):
     elif tr >= 1000:
         IJ.log("Image Type: ACR T2-weighted image.")
 
+# === function to check limits for PASS/FAIL ===
+def check_limits(value, expected):
+    """Checks if the value meets the threshold for PASS/FAIL.
+    Returns "PASS" if value is within tolerance of expected, otherwise "FAIL".
+    """
+    tol = 5  # Tolerance of 5 mm for slice position accuracy, as per ACR guidelines
+    if value is None:
+        return "NaN"
+    try:
+        return "PASS" if abs(value - expected) <= tol else "FAIL"
+    except Exception:
+        return "Error"
 
 # --- Main Script Execution ---
-IJ.log("---- Slice Position Accuracy Test ----")
+
+IJ.log("========================================")
+IJ.log("TEST: Slice Position Accuracy ")
+IJ.log("========================================")
+IJ.log("")
+IJ.log("[SETUP]")
+
 WaitForUserDialog("Open the T1 or T2 image to proceed with the test.").show()
 imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 
@@ -187,6 +199,25 @@ imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 if imp is None:
     IJ.error("No image opened.")
     raise SystemExit
+
+# Extract DICOM metadata (exam date and station name)
+exam_date = "N/A"
+info = imp.getInfoProperty()
+
+if info is not None:
+	try:
+		# Extract exam date (0008,0020)
+		date_start = info.find("0008,0020")
+		if date_start != -1:
+			date_value_start = info.find(":", date_start) + 1
+			date_end = info.find("\n", date_value_start)
+			exam_date = info[date_value_start:date_end].strip()
+	except:
+		pass
+	
+
+IJ.log("Exam Date: " + exam_date)
+IJ.log("")
 
 printImageType(imp)
 
@@ -262,10 +293,21 @@ except:
         pass
 gd.showDialog()
 
-measurement1 = get_measurement(imp, "Slice 1 - Draw the vertical straight line to get the height difference between the bars.\n"
-"Press 'OK' only after drawing the straight line.")
+WaitForUserDialog("Slice 1 - Draw the vertical straight line to get the height difference between the bars.\n"
+"Press 'OK' only after drawing the straight line.").show()
+
+# Set log measurements
+IJ.log("")
+IJ.log("[MEASUREMENTS]")
+IJ.log("")
+IJ.log("Slice 1:")
+IJ.log("")
+
+measurement1 = get_measurement(imp)
 
 # --- Process Eleventh Slice (Slice 11) ---
+
+IJ.log("Slice 11:")
 
 if imp.getNSlices() < 11:
     IJ.error("Additional measurements require slice 11, but the selected image has only {} slices.".format(imp.getNSlices()))
@@ -291,10 +333,17 @@ else:
     imp.setSlice(int(slice_num))
     IJ.log("Slice set to %d." % int(slice_num))
 
-measurement2 = get_measurement(imp, "Slice 11 - Draw the vertical straight line to get the height difference between the bars.\n"
-"Press 'OK' only after drawing the straight line.")
+WaitForUserDialog("Slice 11 - Draw the vertical straight line to get the height difference between the bars.\n").show()
+measurement2 = get_measurement(imp)
 
 # --- Finalization and Results ---
+
+try:
+    fi = imp.getOriginalFileInfo()
+    image_dir = os.path.dirname(fi.directory)
+except:
+    image_dir = os.getcwd()
+    
 imp.close()
 close_wl()
 close_result()
@@ -302,7 +351,41 @@ close_result()
 WaitForUserDialog("Slice Position Accuracy Test finished. Collect the results.\n").show()
 
 IJ.run("Clear Results")
-IJ.log("Slice 1: {:.3f}".format(measurement1))
-IJ.log("Slice 11: {:.3f}".format(measurement2))
-IJ.log("---- End of the Slice Position Accuracy Test ----")
+IJ.log("")
+IJ.log("[RESULTS]")
+IJ.log("")
+IJ.log("Slice 1:")
+IJ.log("   Measured:  {:.3f} mm".format(measurement1))
+IJ.log("   Expected:  +/- 5 mm")
+IJ.log("   Result:    [{}]".format(check_limits(measurement1, 0)))
+IJ.log("")
+IJ.log("Slice 11:")
+IJ.log("   Measured:  {:.3f} mm".format(measurement2))
+IJ.log("   Expected:  +/- 5 mm")
+IJ.log("   Result:    [{}]".format(check_limits(measurement2, 0)))
+IJ.log("")
+IJ.log("[OUTPUT]")
+
+# Save in CSV
+if 'measurement1' in locals() and 'measurement2' in locals():
+	
+	csv_filename = os.path.join(image_dir, "QA_Results_{0}.csv".format(exam_date))
+	
+	try:
+		file_exists = os.path.isfile(csv_filename)
+		
+		with open(csv_filename, 'a') as f:
+			writer = csv.writer(f)
+			
+			m1_str = "{:.3f}".format(measurement1) if 'measurement1' in locals() else "NaN"
+			m2_str = "{:.3f}".format(measurement2) if 'measurement2' in locals() else "NaN"
+			
+			writer.writerow(['Slice_Position_Accuracy_Slice1_mm', m1_str])
+			writer.writerow(['Slice_Position_Accuracy_Slice11_mm', m2_str])
+		
+		IJ.log("Results saved to: {}".format(csv_filename))
+	except Exception as e:
+		IJ.log("Error saving CSV: {}".format(str(e)))
+else:
+	IJ.log("Warning: Could not save CSV (measurement values not found)")
 IJ.log("")

@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: High_contrast_spatial_resolution.py
-# Version 1.0.2
+# Version 1.0.3
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -29,6 +29,8 @@ from ij.gui import GenericDialog
 from java.awt import Font
 import ij.io
 import math
+import os
+import csv
 
 # === All functions used in the script are defined here ===
 
@@ -135,13 +137,38 @@ def get_number_or_nan(prompt, default=1.0):
     return v
 
 # === MAIN SCRIPT ===
-IJ.log("---- High Contrast Spatial Resolution Test ----")
+
+IJ.log("========================================")
+IJ.log("TEST: High Contrast Spatial Resolution")
+IJ.log("========================================")
+IJ.log("")
+IJ.log("[SETUP]")
+IJ.log("")
+
 WaitForUserDialog("Open the T1 or T2 image and perform the high-contrast resolution test.").show()
 imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 
 if imp is None:
     IJ.error("No image open.")
     raise SystemExit()
+
+# Extract DICOM metadata (exam date and station name)
+exam_date = "N/A"
+info = imp.getInfoProperty()
+
+if info is not None:
+	try:
+		# Extract exam date (0008,0020)
+		date_start = info.find("0008,0020")
+		if date_start != -1:
+			date_value_start = info.find(":", date_start) + 1
+			date_end = info.find("\n", date_value_start)
+			exam_date = info[date_value_start:date_end].strip()
+	except:
+		pass
+	
+IJ.log("Exam Date: " + exam_date)
+IJ.log("")
 
 # Identify image type by slice count
 printImageType(imp)
@@ -270,12 +297,55 @@ lower_value = get_number_or_nan("Enter the hole size value for the lower in mm:"
 # ===== Step 6: Wrap-up and log results =====
 dlg = WaitForUserDialog("High-Contrast Resolution Test completed, collect the results.")
 dlg.show()
+
+# Capture image directory before closing
+try:
+    fi = imp.getOriginalFileInfo()
+    image_dir = os.path.dirname(fi.directory)
+except:
+    image_dir = os.getcwd()
+
 imp.close()
 close_wl()
 
 IJ.run("Clear Results")
 
-IJ.log("Upper hole size [mm]: %s" % ("NaN" if (isinstance(upper_value, float) and math.isnan(upper_value)) else ("%.1f" % upper_value)))
-IJ.log("Lower hole size [mm]: %s" % ("NaN" if (isinstance(lower_value, float) and math.isnan(lower_value)) else ("%.1f" % lower_value)))
-IJ.log("---- End of the High Contrast Spatial Resolution Test ----")
+IJ.log("")
+IJ.log("[RESULTS]")
+IJ.log("")
+IJ.log("Upper Hole Size (Horizontal):")
+IJ.log("  Measured:  %s mm" % ("NaN" if (isinstance(upper_value, float) and math.isnan(upper_value)) else ("%.1f" % upper_value)))
+IJ.log("  Expected:  >= 1.0 mm")
+IJ.log("  Result:    [{}]".format("PASS" if (isinstance(upper_value, float) and not math.isnan(upper_value) and upper_value >= 1.0) else "FAIL"))
+IJ.log("")
+IJ.log("Lower Hole Size (Vertical):")
+IJ.log("  Measured:  %s mm" % ("NaN" if (isinstance(lower_value, float) and math.isnan(lower_value)) else ("%.1f" % lower_value)))
+IJ.log("  Expected:  >= 1.0 mm")
+IJ.log("  Result:    [{}]".format("PASS" if (isinstance(lower_value, float) and not math.isnan(lower_value) and lower_value >= 1.0) else "FAIL"))
+IJ.log("")
+IJ.log("[OUTPUT]")
+# Save in CSV
+if 'upper_value' in locals() and 'lower_value' in locals():
+	
+	csv_filename = os.path.join(image_dir, "QA_Results_{0}.csv".format(exam_date))
+	
+	try:
+		# Check if file exists to determine if we need to write headers
+		file_exists = os.path.isfile(csv_filename)
+		
+		with open(csv_filename, 'a') as f:
+			writer = csv.writer(f)
+			
+			upper_str = "NaN" if (isinstance(upper_value, float) and math.isnan(upper_value)) else str(upper_value)
+			lower_str = "NaN" if (isinstance(lower_value, float) and math.isnan(lower_value)) else str(lower_value)
+			
+			# Write measurements with values in next column
+			writer.writerow(['High_Contrast_Resolution_Upper_mm', upper_str])
+			writer.writerow(['High_Contrast_Resolution_Lower_mm', lower_str])
+		
+		IJ.log("Results saved to: {}".format(csv_filename))
+	except Exception as e:
+		IJ.log("Error saving CSV: {}".format(str(e)))
+else:
+	IJ.log("Warning: Could not save CSV (resolution values not found)")
 IJ.log("")

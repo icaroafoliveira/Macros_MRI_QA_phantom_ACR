@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Percentage_signal_ghosting.py
-# Version 1.0.2
+# Version 1.0.3
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -17,6 +17,8 @@ from ij.plugin.frame import RoiManager
 import math
 from ij.io import OpenDialog
 from java.awt import Font
+import os
+import csv
 
 # === All functions used in the script are defined here ===
 
@@ -131,18 +133,56 @@ def create_adjust_roi(imp, length_cm, height_cm, disp_x_px, disp_y_px, title, me
     dlg.show()
 
     value = measure_roi_mean(imp)
-    IJ.log("{}: {:.3f}".format(title, value))
+    IJ.log("   {}:  {:.3f}".format(title, value))
     return value
+
+# === function to check limits for PASS/FAIL ===
+def check_limits(value):
+    """Checks if the value meets the threshold for PASS/FAIL.
+    Returns "PASS" if value is within tolerance of expected, otherwise "FAIL".
+    """
+    tol = 3.0  # Tolerance of 5 mm for slice position accuracy, as per ACR guidelines
+    if value is None:
+        return "NaN"
+    try:
+        return "PASS" if abs(value) <= tol else "FAIL"
+    except Exception:
+        return "Error"
+
 
 # === Main Script ===
 
-IJ.log("---- Start of Percentage Signal Ghosting Test ----")
+IJ.log("========================================")
+IJ.log("TEST: Percentage Signal Ghosting")
+IJ.log("========================================")
+IJ.log("")
+IJ.log("[SETUP]")
+IJ.log("")
+
 WaitForUserDialog("Open the T1 or T2 image and perform the residual image test").show()
 imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 
 if imp is None:
     IJ.error("No image open.")
     raise SystemExit
+
+# Extract DICOM metadata (exam date and station name)
+exam_date = "N/A"
+info = imp.getInfoProperty()
+
+if info is not None:
+	try:
+		# Extract exam date (0008,0020)
+		date_start = info.find("0008,0020")
+		if date_start != -1:
+			date_value_start = info.find(":", date_start) + 1
+			date_end = info.find("\n", date_value_start)
+			exam_date = info[date_value_start:date_end].strip()
+	except:
+		pass
+
+IJ.log("Exam Date: " + exam_date)
+IJ.log("")	
 
 # Print image type for confirmation
 printImageType(imp)
@@ -232,7 +272,12 @@ dlg = WaitForUserDialog("Position large ROI (200 cm^2)",
 dlg.show()
 
 mean_ref = measure_roi_mean(imp)
-IJ.log("Initial mean (large ROI): {:.3f}".format(mean_ref))
+IJ.log("")
+IJ.log("[MEASUREMENTS]")
+IJ.log("")
+IJ.log("ROI Statistics")
+IJ.log("")
+IJ.log("   Large ROI:  {:.3f}".format(mean_ref))
 
 # --- Step 3: Manual Windowing Adjustment ---
 # The window is manually adjusted by the user to better visualize the faint ghosting artifacts.
@@ -310,8 +355,7 @@ if (mean_ref) == 0:
 else:
     # The GR formula is ((top - bottom) - (left + right)) / (2 * central_mean) * 100
     GR = abs((((top - btm)-(left+right))*100) / (2.0*mean_ref))
-    IJ.log("Ghosting Ratio calculated: {:.10f}%".format(GR))
-    IJ.log("{:.10f}%".format(GR))
+    IJ.log("   Ghosting Ratio calculated:  {:.10f}%".format(GR))
 
 # --- Finalization ---
 # Prompt the user to close the ROI Manager and finish the process.
@@ -342,9 +386,45 @@ gd.showDialog()
 
 
 WaitForUserDialog("Percentage Signal Ghosting Test completed, collect the results.\n").show()
+
+# Capture image directory before closing
+try:
+    fi = imp.getOriginalFileInfo()
+    image_dir = os.path.dirname(fi.directory)
+except:
+    image_dir = os.getcwd()
+    
 imp.close()
 close_wl()
 
 IJ.run("Clear Results")
-IJ.log("---- End of Percentage Signal Ghosting Test ----")
+IJ.log("")
+IJ.log("[RESULTS]")
+IJ.log("")
+IJ.log("Ghosting Ratio:")
+IJ.log("   Measured:  {:.2f}%".format(GR))
+IJ.log("   Expected:  <= 3.0% (ACR guideline)")
+IJ.log("   Result:    [{}]".format(check_limits(GR)))
+IJ.log("")
+IJ.log("[OUTPUT]")
+
+# Save in CSV
+if 'GR' in locals():
+	
+	csv_filename = os.path.join(image_dir, "QA_Results_{0}.csv".format(exam_date))
+	
+	try:
+		file_exists = os.path.isfile(csv_filename)
+		
+		with open(csv_filename, 'a') as f:
+			writer = csv.writer(f)
+			
+			gr_str = "{:.2f}".format(GR) if 'GR' in locals() else "NaN"
+			writer.writerow(['Percentage_Signal_Ghosting_Ratio_Percent', gr_str])
+		
+		IJ.log("Results saved to: {}".format(csv_filename))
+	except Exception as e:
+		IJ.log("Error saving CSV: {}".format(str(e)))
+else:
+	IJ.log("Warning: Could not save CSV (GR value not found)")
 IJ.log("")

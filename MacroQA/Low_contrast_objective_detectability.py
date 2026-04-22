@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Low_contrast_objective_detectability.py
-# Version 1.0.2
+# Version 1.0.3
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -18,6 +18,8 @@ from ij.gui import GenericDialog
 from java.awt import Font
 import math
 from javax.swing import JFileChooser
+import os
+import csv
 
 # === All functions used in the script are defined here ===
 
@@ -260,10 +262,29 @@ def select_and_open_dicom(prompt, image_type_label=""):
 
     return imp, dcm_type, is_multi_echo
 
+# === Function to evaluate PASS/FAIL automatically ===
+
+def check_limits(value, threshold):
+    """Checks if the value meets the threshold for PASS/FAIL.
+    Returns "PASS" if value >= threshold, otherwise "FAIL".
+    """
+    if isinstance(value, float) and math.isnan(value):
+        return "FAIL"
+    elif value >= threshold:
+        return "PASS"
+    else:
+        return "FAIL"
+
 # === End of function definitions ===
 
 # --- Main script starts here ---
-IJ.log("---- Start of Low Contrast Objective Detectability Test ----")
+
+IJ.log("========================================")
+IJ.log("TEST: Low Contrast Objective Detectability")
+IJ.log("========================================")
+IJ.log("")
+IJ.log("[SETUP]")
+IJ.log("")
 
 # Instructions for the user
 gd = GenericDialog("Instructions")
@@ -297,6 +318,24 @@ gd.showDialog()
 # Identification of DICOM type
 imp, dcm_type, is_multi_echo = select_and_open_dicom("Click OK to select the T1 image")
 
+# Extract DICOM metadata (exam date and station name)
+exam_date = "N/A"
+info = imp.getInfoProperty()
+
+if info is not None:
+	try:
+		# Extract exam date (0008,0020)
+		date_start = info.find("0008,0020")
+		if date_start != -1:
+			date_value_start = info.find(":", date_start) + 1
+			date_end = info.find("\n", date_value_start)
+			exam_date = info[date_value_start:date_end].strip()
+	except:
+		pass
+	
+IJ.log("Exam Date: " + exam_date)
+IJ.log("")
+
 # Handling Window/Level: window = 850, level = 1900
 IJ.run("In [+]","")
 IJ.run("In [+]","")
@@ -323,6 +362,18 @@ if level is not None:
     max_display = level + window / 2.0
     imp.setDisplayRange(min_display, max_display)
     imp.updateAndDraw()
+
+# Get Magnetic Field Strength from DICOM header
+info = imp.getInfoProperty()
+mag_field_strength = None
+if info is not None:
+    for line in info.split("\n"):
+        if line.startswith("0018,0087"):  # Magnetic Field Strength tag
+            try:
+                mag_field_strength = line.split(":")[1].strip()
+            except:
+                mag_field_strength = None
+                IJ.log("Could not parse Magnetic Field Strength value.")
 
 # Prompt user to perform the analysis for each slice
 WaitForUserDialog("Slice 8 - Perform the analysis and click OK").show()
@@ -358,6 +409,14 @@ if level is not None:
 
 WaitForUserDialog("Slice 11 - Perform the analysis and click OK").show()
 t1_slice11 = get_number_or_nan("Enter the number of complete spokes in slice 11:", 10.0)
+
+# Capture image directory before closing
+try:
+    fi = imp.getOriginalFileInfo()
+    image_dir = os.path.dirname(fi.directory)
+except:
+    image_dir = os.getcwd()
+    
 imp.close()
 
 # --- T2 weighted image ---
@@ -438,10 +497,65 @@ spheres_T2 = t2_slice8 + t2_slice9 + t2_slice10 + t2_slice11
 imp2.close()
 close_wl()
 
+
+# checking limits for PASS/FAIL and show in the log for reference
+
+if mag_field_strength is not None:
+    IJ.log("Magnetic Field Strength: {}".format(mag_field_strength))
+    if "3" in mag_field_strength:
+        threshold_T1 = 37
+        threshold_T2 = 37
+    elif "1.5" in mag_field_strength:
+        threshold_T1 = 30
+        threshold_T2 = 25
+    else:
+        threshold_T1 = 7
+        threshold_T2 = 7
+else:
+    IJ.log("Magnetic Field Strength not found. Using default thresholds.")
+    threshold_T1 = 37
+    threshold_T2 = 37
+
+
 WaitForUserDialog("Low Contrast Detail Test completed. Collect the results.").show()
 
 IJ.run("Clear Results")
-IJ.log("Number of complete spokes in T1: %s" % ("NaN" if (isinstance(spheres_T1, float) and math.isnan(spheres_T1)) else int(spheres_T1)))
-IJ.log("Number of complete spokes in T2: %s" % ("NaN" if (isinstance(spheres_T2, float) and math.isnan(spheres_T2)) else int(spheres_T2)))
-IJ.log("---- End of Low Contrast Objective Detectability Test ----")
+IJ.log("")
+IJ.log("[RESULTS]")
+IJ.log("")
+IJ.log("T1-Weighted Image:")
+IJ.log("  Measured:  %s spokes" % ("NaN" if (isinstance(spheres_T1, float) and math.isnan(spheres_T1)) else int(spheres_T1)))
+IJ.log("  Expected:  >= {} spokes".format(threshold_T1))
+IJ.log("  Result:    [{}]".format(check_limits(spheres_T1, threshold_T1)))
+IJ.log("")
+IJ.log("T2-Weighted Image:")
+IJ.log("  Measured:  %s spokes" % ("NaN" if (isinstance(spheres_T2, float) and math.isnan(spheres_T2)) else int(spheres_T2)))
+IJ.log("  Expected:  >= {} spokes".format(threshold_T2))
+IJ.log("  Result:    [{}]".format(check_limits(spheres_T2, threshold_T2)))
+IJ.log("")
+IJ.log("[OUTPUT]")
+
+# Save in CSV
+if 'spheres_T1' in locals() and 'spheres_T2' in locals():
+	
+	csv_filename = os.path.join(image_dir, "QA_Results_{0}.csv".format(exam_date))
+	
+	try:
+		file_exists = os.path.isfile(csv_filename)
+		
+		with open(csv_filename, 'a') as f:
+			writer = csv.writer(f)
+			
+			spheres_T1_str = "NaN" if (isinstance(spheres_T1, float) and math.isnan(spheres_T1)) else str(int(spheres_T1))
+			spheres_T2_str = "NaN" if (isinstance(spheres_T2, float) and math.isnan(spheres_T2)) else str(int(spheres_T2))
+			
+			writer.writerow(['Low_Contrast_T1_Spokes', spheres_T1_str])
+			writer.writerow(['Low_Contrast_T2_Spokes', spheres_T2_str])
+		
+		IJ.log("Results saved to: {}".format(csv_filename))
+	except Exception as e:
+		IJ.log("Error saving CSV: {}".format(str(e)))
+else:
+	IJ.log("Warning: Could not save CSV (spoke values not found)")
+
 IJ.log("")

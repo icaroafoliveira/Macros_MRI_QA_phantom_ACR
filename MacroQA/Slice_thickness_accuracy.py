@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Slice_thickness_accuracy.py
-# Version 1.0.2
+# Version 1.0.3
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -15,6 +15,9 @@ from ij.gui import Roi, WaitForUserDialog
 from ij.measure import Measurements
 from ij.measure import ResultsTable
 from ij.io import OpenDialog
+import math
+import os
+import csv
 
 # === All functions used in the script are defined here ===
 
@@ -74,9 +77,26 @@ def printImageType(imp):
     elif tr >= 1000:
         IJ.log("Image Type: ACR T2-weighted image.")
 
+# === function to check limits for PASS/FAIL ===
+def check_limits(value, expected):
+    """Checks if the value meets the threshold for PASS/FAIL.
+    Returns "PASS" if value is within tolerance of expected, otherwise "FAIL".
+    """
+    tol = 1
+    if value is None:
+        return "NaN"
+    try:
+        return "PASS" if abs(value - expected) <= tol else "FAIL"
+    except Exception:
+        return "Error"
+
 # --- Main Script Execution ---
 
-IJ.log("---- Slice Thickness Accuracy Test ----")
+IJ.log("========================================")
+IJ.log("TEST: Slice Thickness Accuracy ")
+IJ.log("========================================")
+IJ.log("")
+IJ.log("[SETUP]")
 
 # Step 1: Open the T1-weighted image
 WaitForUserDialog("Open the T1 or T2 image and perform the slice thickness accuracy test.").show()
@@ -85,6 +105,24 @@ imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 if imp is None:
     IJ.error("No image open.")
     raise SystemExit
+
+# Extract DICOM metadata (exam date and station name)
+exam_date = "N/A"
+info = imp.getInfoProperty()
+
+if info is not None:
+    try:
+        # Extract exam date (0008,0020)
+        date_start = info.find("0008,0020")
+        if date_start != -1:
+            date_value_start = info.find(":", date_start) + 1
+            date_end = info.find("\n", date_value_start)
+            exam_date = info[date_value_start:date_end].strip()
+    except:
+        pass
+
+IJ.log("Exam Date: " + exam_date)
+IJ.log("")
 
 # Print image type for confirmation
 printImageType(imp)
@@ -125,6 +163,11 @@ imp.updateAndDraw()
 # This signal is used to automatically adjust the display for better contrast later.
 IJ.setTool("rectangle")
 
+# Set log measurements
+IJ.log("")
+IJ.log("[MEASUREMENTS]")
+IJ.log("")
+
 # ROI 1 Selection (Background)
 while True:
     WaitForUserDialog("Place the rectangular ROI in the middle of the top ramp.\n"
@@ -139,6 +182,8 @@ while True:
     mean1 = stats1.mean
     break
 
+IJ.log("   {}:  {:.3f}".format("Rectangular ROI 1 (top)", mean1))
+
 # ROI 2 Selection (Background)
 while True:
     WaitForUserDialog("Place the rectangular ROI in the middle of the bottom ramp.\n"
@@ -152,6 +197,8 @@ while True:
     stats2 = imp.getStatistics(Measurements.MEAN)
     mean2 = stats2.mean
     break
+
+IJ.log("   {}:  {:.3f}".format("Rectangular ROI 2 (bottom)", mean2))
 
 # Step 4: Refine Window/Level based on measured signal
 # The display is re-adjusted to enhance the visibility of the inclined planes,
@@ -180,6 +227,8 @@ while True:
     length3 = roi3.getLength()
     break
 
+IJ.log("   {}:  {:.3f}".format("Length top ramp", length3))
+
 # ROI 4 Selection (Inclined Plane 2)
 while True:
     WaitForUserDialog("Draw a straight line to record the length of the bottom ramp.\n"
@@ -192,6 +241,8 @@ while True:
     IJ.run("Measure")
     length4 = roi4.getLength()
     break
+
+IJ.log("   {}:  {:.3f}".format("Length bottom ramp", length4))
 
 # Step 6: Calculate the final slice thickness
 # The formula combines the measured lengths to determine the true slice thickness.
@@ -208,10 +259,45 @@ rt.show("Results")
 WaitForUserDialog("Slice Thickness Accuracy Test completed, collect the results.").show()
 
 # Clean up and finalize
+# Close the image and results table, clear results for next test, and log the final result with PASS/FAIL status.
+# PASS +/- 1 mm from the expected 5 mm slice thickness.
+
+try:
+    fi = imp.getOriginalFileInfo()
+    image_dir = os.path.dirname(fi.directory)
+except:
+    image_dir = os.getcwd()
+    
 imp.close()
 close_result()
 IJ.run("Clear Results")
-IJ.log("Slice thickness: {:.3f}".format(results))
-IJ.log("{:.3f}".format(results))
-IJ.log("---- End of the Slice Thickness Accuracy Test ----")
+IJ.log("")
+IJ.log("[RESULTS]")
+IJ.log("")
+IJ.log("Slice Thickness:")
+IJ.log("   Measured:  {:.3f} mm".format(results))
+IJ.log("   Expected:  5.0 +/- 1.0 mm")
+IJ.log("   Result:    [{}]".format(check_limits(results, 5)))
+IJ.log("")
+IJ.log("[OUTPUT]")
+
+# Save in CSV
+if 'results' in locals():
+    
+    csv_filename = os.path.join(image_dir, "QA_Results_{0}.csv".format(exam_date))
+    
+    try:
+        file_exists = os.path.isfile(csv_filename)
+        
+        with open(csv_filename, 'a') as f:
+            writer = csv.writer(f)
+            
+            results_str = "{:.3f}".format(results) if 'results' in locals() else "NaN"
+            writer.writerow(['Slice_Thickness_Accuracy_mm', results_str])
+        
+        IJ.log("Results saved to: {}".format(csv_filename))
+    except Exception as e:
+        IJ.log("Error saving CSV: {}".format(str(e)))
+else:
+    IJ.log("Warning: Could not save CSV (thickness value not found)")
 IJ.log("")
