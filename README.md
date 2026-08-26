@@ -1,15 +1,15 @@
 # MacroQA: An ImageJ Macro for ACR MRI Quality Assurance
-`MacroQA` is a comprehensive ImageJ/Fiji macro designed to provide a more reliable and practical implementation of the American College of Radiology (ACR) Quality Assurance (QA) tests. Its development was motivated by academic and pedagogical needs, aiming to simplify the testing process for students, researchers, and MRI staff. By leveraging ImageJ/Fiji's built-in functions, MacroQA can perform all tests from the MRI ACR phantom manual with impressive accuracy and efficiency, completing the process in just a few minutes.
+`MacroQA` is a comprehensive ImageJ/Fiji macro designed to provide a more reliable and practical implementation of the American College of Radiology (ACR) Quality Assurance (QA) tests. Its development was motivated by academic and pedagogical needs, aiming to simplify the testing process for students, researchers, and MRI staff. By leveraging ImageJ/Fiji's built-in functions, MacroQA provides a guided and semi-automated implementation of the QC procedures described in the ACR MRI phantom manual, reducing the time and effort required to perform the complete assessment.
 
 ---
 
 ## Why MacroQA?
 Most existing implementations for performing ACR QA tests rely on proprietary software, such as MATLAB, which requires a paid license and limits accessibility. This creates a significant barrier for researchers, educators, students and MRI staff in resource-constrained environments.\
 In contrast, MacroQA is:
-- **Free and open-source** - built entirely on Image/Fiji.
-- **Accessible** - written in Jython, a Python-like (Python2) language already embedded in Fiji.
+- **Free and open-source** - distributed through Fiji/ImageJ without requiring proprietary software.
+- **Accessible** - runs within the freely available Fiji distribution without requiring MATLAB or a virtual-machine environment.
 - **Transparent and reproducible** - the source code is openly available for inspection, validation, and further development.
-
+- **User-guided** - combines automated calculations with user interaction where required by the ACR procedure, rather than replacing the measurement workflow with a fully automated black-box process.
 ---
 
 ## Tests included
@@ -36,6 +36,29 @@ Each test follows the acceptance criteria defined in the **ACR MRI QA Program**.
 > [!NOTE]
 > This software is a self-contained ImageJ/Fiji macro and does not require any external dependencies beyond a standard installation of Fiji. It relies solely on the core functions of ImageJ and Jython.
 
+
+---
+
+## Technical Specifications
+
+| Specification | Details |
+|---|---|
+| **Platform** | Fiji/ImageJ |
+| **Programming language** | Jython (Python 2) |
+| **Java requirement** | Java 8 (JRE 1.8) |
+| **Operating systems** | Windows, macOS, and Linux supported by the corresponding Fiji distribution |
+| **External dependencies** | None beyond a standard Fiji installation |
+| **Execution time** | User-dependent; see explanation below |
+
+### Execution time
+
+MacroQA is a semi-automated, user-guided framework rather than a fully automated batch-processing pipeline. Consequently, the time required to complete an individual QC module depends on the amount of user interaction required, including image selection, ROI placement, and manual measurements where applicable.
+
+The computational processing performed by MacroQA after user input is generally immediate; therefore, a fixed software execution time per module is not representative of the actual QC workflow. Overall QC completion times with and without MacroQA are reported in the associated manuscript.
+
+### System requirements
+
+MacroQA does not require dedicated hardware or a proprietary software license. It runs within the Fiji/ImageJ environment and uses the resources required by the corresponding Fiji distribution.
 
 ---
 
@@ -100,6 +123,19 @@ Some tests require user interaction, such as drawing straight lines or selecting
 
 ---
 
+## Related Publications and Presentations
+
+### ISMRM 2026
+
+MacroQA was presented at the 2026 ISMRM & ISMRT Annual Meeting and Exhibition:
+
+> Oliveira I, Vitorino GB, Gnatkovski VHG, de Oliveira PC, Quiel MS, Salmon C.
+> **MacroQA: An Open-Source Fiji-based tool for automated ACR MRI Phantom Quality Assurance.**
+> ISMRM 2026, Cape Town, South Africa, May 2026.
+> Abstract 401-03-001.
+
+[View the abstract on the ISMRM website](http://echo.ismrm.org/p/ISMRM2026/401-03-001)
+---
 ## Contributing
 Contributions are welcome. Please open issues for bugs or feature requests. Pull requests should include a short description and, when appropriate, test data.
 
