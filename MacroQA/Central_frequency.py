@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Central_frequency.py
-# Version 1.0.3
+# Version 1.0.4
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -60,12 +60,18 @@ open_dia_file = OpenDialog("Open T1w image", None)
 # Get the path
 path = open_dia_file.getPath()
 
-# if path is None 
+# Check if path is None (user cancelled dialog)
+if path is None:
+	IJ.log("No file selected. Exiting.")
+	exit()
 
 # Open DICOM
 imp = IJ.openImage(path)
 
-# If imp is None
+# Check if image failed to open
+if imp is None:
+	IJ.log("Failed to open image. Exiting.")
+	exit()
 
 # Check header info
 info = imp.getInfoProperty()
@@ -93,43 +99,83 @@ except:
 
 IJ.log("Exam Date: " + exam_date)
 IJ.log("")
-	
+
+# Additional information == Magnetic Field Strength (0018,0087) and Manufacturer (0008,0070)
+magnetic_field_strength = "N/A"
+manufacturer = "N/A"
+try:
+	magnetic_field_start = info.find("0018,0087")
+	if magnetic_field_start != -1:
+		magnetic_field_value_start = info.find(":", magnetic_field_start) + 1
+		magnetic_field_end = info.find("\n", magnetic_field_value_start)
+		magnetic_field_strength = info[magnetic_field_value_start:magnetic_field_end].strip()
+	IJ.log("Magnetic Field Strength: " + magnetic_field_strength + " T")
+except:
+	pass
+
+try:
+	manufacturer_start = info.find("0008,0070")
+	if manufacturer_start != -1:
+		manufacturer_value_start = info.find(":", manufacturer_start) + 1
+		manufacturer_end = info.find("\n", manufacturer_value_start)
+		manufacturer = info[manufacturer_value_start:manufacturer_end].strip()
+	IJ.log("Manufacturer: " + manufacturer)
+except:
+	pass
+
 # Imaging Frequency tag is (0018, 0084)
 # We need to parse the header string to find this value
 # The header is often a Large string with all the tags and values.
-tag_key = "0018,0084"
+
+imaging_freq_key = "0018,0084"
+transmitter_freq_key = "0018,9098"
 
 # A simple way to find the value is to search for the tag in the string.
 # The format is typically "Tag_ID: Value"
-start_index = info.find(tag_key)
+central_frequency_mhz = None
+transmitter_frequency_mhz = None
 
-if start_index != -1:
-	# Find the start of the value part
-	value_start = info.find(":", start_index) + 1
-	# Find the end of the line
-	end_index = info.find("\n", value_start)        
-	
-	# Extract and clean up the value
-	central_freq_str = info[value_start:end_index].strip()
-	try:
-		# Convert the string to a floating-point number
-		central_frequency_mhz = float(central_freq_str)
-		dlg=WaitForUserDialog("Central Frequency test finished, collect the results.")
-		dlg.show()
-		
-	except ValueError:
-		IJ.log("Could not convert the value to a number.")
-  
-	IJ.log("[RESULTS]")
-	IJ.log("Central frequency: " + str(central_frequency_mhz) + " MHz")
+if info is not None:
+    for line in info.split("\n"):
+        if line.startswith(imaging_freq_key):
+            try:
+                central_frequency_mhz = float(line.split(":")[1].strip())
+            except ValueError:
+                IJ.log("Could not convert the Imaging Frequency value to a number.")
+        
+        if line.startswith(transmitter_freq_key):
+            try:
+                transmitter_frequency_mhz = float(line.split(":")[1].strip())
+            except ValueError:
+                IJ.log("Could not convert the Transmitter Frequency value to a number.")
+    
+    # Check if tags were found after loop completes
+    if central_frequency_mhz is None:
+        IJ.log("Imaging Frequency (0018, 0084) tag not found in the DICOM header.")
+        # Use transmitter frequency as fallback
+        if transmitter_frequency_mhz is not None:
+            central_frequency_mhz = transmitter_frequency_mhz
+            IJ.log("Using Transmitter Frequency as central frequency.")
+    
+    if transmitter_frequency_mhz is None:
+        IJ.log("Transmitter Frequency (0018, 9098) tag not found in the DICOM header.")
 else:
-	IJ.log("Imaging Frequency (0018, 0084) tag not found in the DICOM header.")
+    IJ.log("Could not retrieve DICOM header information.")
+
+
+dlg=WaitForUserDialog("Central Frequency test finished, collect the results.")
+dlg.show()
+		
+IJ.log("")
+IJ.log("[RESULTS]")
+IJ.log("Central frequency: " + str(central_frequency_mhz) + " MHz")
+IJ.log("Transmitter frequency: " + str(transmitter_frequency_mhz) + " MHz")
  
 IJ.log("")
 IJ.log("[OUTPUT]")
 
 # Save in CSV
-if 'central_frequency_mhz' in locals():
+if central_frequency_mhz is not None:
 	try:
 		image_dir = os.path.dirname(path)
 	except NameError:

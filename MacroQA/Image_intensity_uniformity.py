@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Image_intensity_uniformity.py
-# Version 1.0.3
+# Version 1.0.4
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -128,7 +128,7 @@ def printImageType(imp):
     elif tr >= 1000:
         IJ.log("Image Type: ACR T2-weighted image.")
 
-def check_limits(value, imp):
+def check_limits(phantom_size, value, imp):
     """Checks if the value meets the threshold for PASS/FAIL.
     Returns "PASS" if value is within tolerance of expected, otherwise "FAIL".
     """
@@ -144,10 +144,16 @@ def check_limits(value, imp):
                     mag_field_strength = None
                     IJ.log("Could not parse Magnetic Field Strength value.")
     
-    if mag_field_strength < "3":
-        tol = 85
-    else:
-        tol = 80
+    if phantom_size == "Large":
+        if mag_field_strength is not None and float(mag_field_strength) < 3.0:
+            tol = 85
+        else:
+            tol = 80
+    elif phantom_size == "Medium":
+        if mag_field_strength is not None and float(mag_field_strength) < 3.0:
+            tol = 90
+        else:
+            tol = 85
         
     if value is None:
         return "NaN"
@@ -164,6 +170,13 @@ IJ.log("")
 IJ.log("[SETUP]")
 IJ.log("")
 
+# === SELECT WICH PHANTOM SIZE IS BEING USED ===
+gd_phantom_size = GenericDialog("Select Phantom Size")
+gd_phantom_size.addChoice("Phantom Size:", ["Large", "Medium"], "Large")
+gd_phantom_size.showDialog()
+phantom_size = gd_phantom_size.getNextChoice()
+
+# === Starting the test ===
 WaitForUserDialog("Open the T1 or T2 image and perform the uniformity test").show()
 imp = open_dicom_file("Select T1-weighted or T2-weighted DICOM image")
 
@@ -398,15 +411,21 @@ try:
 except:
     image_dir = os.getcwd()
 
-imp.close()
 IJ.run("Clear Results")
 IJ.log("")
 IJ.log("[RESULTS]")
 IJ.log("")
 IJ.log("Percent Intensity Uniformity (PIU):")
-IJ.log("  Measured:  {:.2f}%".format(piu))
-IJ.log("  Expected:  >= 80% (3T) and >= 85% (1.5T)")
-IJ.log("  Result:    [{}]".format(check_limits(piu, imp)))
+
+if 'piu' in locals():
+    IJ.log("  Measured:  {:.2f}%".format(piu))
+    IJ.log("  Expected:  >= 80% (3T) and >= 85% (1.5T)" if phantom_size == "Large" else "  Expected:  >= 85% (3T) and >= 90% (1.5T)")
+    IJ.log("  Result:    [{}]".format(check_limits(phantom_size, piu, imp)))
+else:
+    IJ.log("  Measured:  NaN (calculation failed)")
+    IJ.log("  Result:    [ERROR]")
+
+imp.close()
 IJ.log("")
 IJ.log("[OUTPUT]")
 

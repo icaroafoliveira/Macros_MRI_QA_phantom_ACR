@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Run_QA_Workflow.py
-# Version 1.0.3
+# Version 1.0.4
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -18,7 +18,10 @@ import os
 
 
 # Get the directory of the current script
-script_dir = os.path.dirname(__file__)
+try:
+    script_dir = os.path.normpath(os.path.dirname(os.path.abspath(__file__)))
+except:
+    script_dir = os.path.getcwd()
 
 gd = GenericDialog("ACR MRI Quality Assurance Tests")
 gd.addMessage("Select QA tests to run:")

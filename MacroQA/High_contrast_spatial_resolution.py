@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: High_contrast_spatial_resolution.py
-# Version 1.0.3
+# Version 1.0.4
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -315,13 +315,13 @@ IJ.log("[RESULTS]")
 IJ.log("")
 IJ.log("Upper Hole Size (Horizontal):")
 IJ.log("  Measured:  %s mm" % ("NaN" if (isinstance(upper_value, float) and math.isnan(upper_value)) else ("%.1f" % upper_value)))
-IJ.log("  Expected:  >= 1.0 mm")
-IJ.log("  Result:    [{}]".format("PASS" if (isinstance(upper_value, float) and not math.isnan(upper_value) and upper_value >= 1.0) else "FAIL"))
+IJ.log("  Expected:  <= 1.0 mm")
+IJ.log("  Result:    [{}]".format("PASS" if (isinstance(upper_value, float) and not math.isnan(upper_value) and upper_value <= 1.0) else "FAIL"))
 IJ.log("")
 IJ.log("Lower Hole Size (Vertical):")
 IJ.log("  Measured:  %s mm" % ("NaN" if (isinstance(lower_value, float) and math.isnan(lower_value)) else ("%.1f" % lower_value)))
-IJ.log("  Expected:  >= 1.0 mm")
-IJ.log("  Result:    [{}]".format("PASS" if (isinstance(lower_value, float) and not math.isnan(lower_value) and lower_value >= 1.0) else "FAIL"))
+IJ.log("  Expected:  <= 1.0 mm")
+IJ.log("  Result:    [{}]".format("PASS" if (isinstance(lower_value, float) and not math.isnan(lower_value) and lower_value <= 1.0) else "FAIL"))
 IJ.log("")
 IJ.log("[OUTPUT]")
 # Save in CSV

@@ -1,7 +1,7 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
 # File: Geometric_accuracy.py
-# Version 1.0.3
+# Version 1.0.4
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
@@ -15,7 +15,7 @@
 from ij import IJ, WindowManager
 from ij.io import OpenDialog
 from ij.measure import ResultsTable
-from ij.gui import WaitForUserDialog, Roi
+from ij.gui import WaitForUserDialog, Roi, GenericDialog
 import sys
 import os
 import csv
@@ -139,11 +139,11 @@ def fmt(val):
         return str(val)
 
 # === function to check limits for PASS/FAIL ===
-def check_limits(value, expected):
+def check_limits(value, expected, tolerance):
     """Checks if the value meets the threshold for PASS/FAIL.
     Returns "PASS" if value is within tolerance of expected, otherwise "FAIL".
     """
-    tol = 3
+    tol = tolerance
     if value is None:
         return "NaN"
     try:
@@ -158,6 +158,21 @@ IJ.log("========================================")
 IJ.log("")
 IJ.log("[SETUP]")
 IJ.log("")
+
+# === SELECT WICH PHANTOM SIZE IS BEING USED ===
+gd_phantom_size = GenericDialog("Select Phantom Size")
+gd_phantom_size.addChoice("Phantom Size:", ["Large", "Medium"], "Large")
+gd_phantom_size.showDialog()
+phantom_size = gd_phantom_size.getNextChoice()
+
+if phantom_size == "Large":
+    localizer_expected_length = 148
+    t1_expected_length = 190
+    tolerance = 3
+elif phantom_size == "Medium":
+    localizer_expected_length = 134
+    t1_expected_length = 165
+    tolerance = 2
 
 # === LOCALIZER measurements ===
 WaitForUserDialog("Click OK to select the Localizer image.").show()
@@ -257,13 +272,13 @@ IJ.log("[RESULTS]")
 IJ.log("")
 IJ.log("{:<25} {:<15} {:<15} {:<10}".format("Measurement", "Value [mm]", "Expected [mm]", "Result"))
 IJ.log("-" * 68)
-IJ.log("{:<25} {:<15} {:<15} {:<10}".format("Localizer (Vertical)", fmt(localizer_measurement), "148", check_limits(localizer_measurement, 148)))
-IJ.log("{:<25} {:<15} {:<15} {:<10}".format("T1 Slice 1 - Vertical", fmt(t1_vert), "190", check_limits(t1_vert, 190)))
-IJ.log("{:<25} {:<15} {:<15} {:<10}".format("T1 Slice 1 - Horizontal", fmt(t1_horz), "190", check_limits(t1_horz, 190)))
-IJ.log("{:<25} {:<15} {:<15} {:<10}".format("T1 Slice 5 - Diagonal 1", fmt(t1_diag1), "190", check_limits(t1_diag1, 190)))
-IJ.log("{:<25} {:<15} {:<15} {:<10}".format("T1 Slice 5 - Diagonal 2", fmt(t1_diag2), "190", check_limits(t1_diag2, 190)))
-IJ.log("{:<25} {:<15} {:<15} {:<10}".format("T1 Slice 5 - Vertical", fmt(t1_vert_5), "190", check_limits(t1_vert_5, 190)))
-IJ.log("{:<25} {:<15} {:<15} {:<10}".format("T1 Slice 5 - Horizontal", fmt(t1_horz_5), "190", check_limits(t1_horz_5, 190)))
+IJ.log("{:<25} {:<15} {:<15} {:<10}".format("Localizer (Vertical)", fmt(localizer_measurement), str(localizer_expected_length), check_limits(localizer_measurement, localizer_expected_length, tolerance)))
+IJ.log("{:<25} {:<15} {:<15} {:<10}".format("T1 Slice 1 - Vertical", fmt(t1_vert), str(t1_expected_length), check_limits(t1_vert, t1_expected_length, tolerance)))
+IJ.log("{:<25} {:<15} {:<15} {:<10}".format("T1 Slice 1 - Horizontal", fmt(t1_horz), str(t1_expected_length), check_limits(t1_horz, t1_expected_length, tolerance)))
+IJ.log("{:<25} {:<15} {:<15} {:<10}".format("T1 Slice 5 - Diagonal 1", fmt(t1_diag1), str(t1_expected_length), check_limits(t1_diag1, t1_expected_length, tolerance)))
+IJ.log("{:<25} {:<15} {:<15} {:<10}".format("T1 Slice 5 - Diagonal 2", fmt(t1_diag2), str(t1_expected_length), check_limits(t1_diag2, t1_expected_length, tolerance)))
+IJ.log("{:<25} {:<15} {:<15} {:<10}".format("T1 Slice 5 - Vertical", fmt(t1_vert_5), str(t1_expected_length), check_limits(t1_vert_5, t1_expected_length, tolerance)))
+IJ.log("{:<25} {:<15} {:<15} {:<10}".format("T1 Slice 5 - Horizontal", fmt(t1_horz_5), str(t1_expected_length), check_limits(t1_horz_5, t1_expected_length, tolerance)))
 IJ.log("")
 
 

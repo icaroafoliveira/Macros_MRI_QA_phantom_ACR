@@ -1,11 +1,11 @@
 # --- MacroQA File Header ---
 # Project: MacroQA - An ImageJ Macro for ACR MRI Quality Assurance
-# File: Low_contrast_objective_detectability.py
-# Version 1.0.3
+# File: Low_contrast_object_detectability.py
+# Version 1.0.4
 # Source: https://github.com/icaroafoliveira/Macros_MRI_QA_phantom_ACR
 # ---------------------------
 
-# Macro to perform the Low Contrast Objective Detectability test of the ACR MRI phantom.
+# Macro to perform the Low Contrast Object Detectability test of the ACR MRI phantom.
 # The script assumes that the user will select the T1-weighted image first (multi-slice or selecting 4 single slices)
 # and then the T2-weighted image (multi-slice or selecting 4 single slices).
 # The user is prompted to analyze specific slices and enter the number of complete spokes.
@@ -166,6 +166,9 @@ def open_multiple_dicom_files():
     
     Returns the combined ImagePlus object or None if the operation is canceled or fails.
     """
+    info = None
+    image_dir = None
+
     # File chooser with multi-selection
     fc = JFileChooser()
     fc.setMultiSelectionEnabled(True)
@@ -185,7 +188,15 @@ def open_multiple_dicom_files():
             stack = None
             for i, f in enumerate(files):
                 imp = IJ.openImage(f.getAbsolutePath())
-                printImageType(imp)
+                if i == 0:
+                    printImageType(imp)
+                    info = imp.getInfoProperty()
+                    try:
+                        fi = imp.getOriginalFileInfo()
+                        image_dir = os.path.dirname(fi.directory)
+                    except:
+                        image_dir = os.getcwd()
+                    
                 if stack is None:
                     stack = ImageStack(imp.getWidth(), imp.getHeight())
                 stack.addSlice("Image {}".format(i+1), imp.getProcessor())
@@ -193,7 +204,7 @@ def open_multiple_dicom_files():
             result.show()
 
             # Return the combined ImagePlus so the caller can navigate slices
-            return result
+            return result, info, image_dir
 
 # === Show dialog for DICOM type RadioButton options ===
 def show_dicom_type_dialog():
@@ -229,6 +240,8 @@ def select_and_open_dicom(prompt, image_type_label=""):
     """Prompts the user to select a DICOM type and opens the corresponding DICOM file(s).
     
     Returns the ImagePlus object, DICOM type, and multi-echo choice."""
+    info = None
+    image_dir = None
 
     # Identification of DICOM type
     dcm_type, is_multi_echo = show_dicom_type_dialog()
@@ -244,6 +257,12 @@ def select_and_open_dicom(prompt, image_type_label=""):
             IJ.error("No image open.")
             raise SystemExit
         printImageType(imp)
+        info = imp.getInfoProperty()
+        try:
+            fi = imp.getOriginalFileInfo()
+            image_dir = os.path.dirname(fi.directory)
+        except:
+            image_dir = os.getcwd()
     elif dcm_type == "Multi-Frame":
         IJ.log("DICOM Type selected: Multi-Frame")
         WaitForUserDialog(prompt).show()
@@ -252,15 +271,21 @@ def select_and_open_dicom(prompt, image_type_label=""):
             IJ.error("No image open.")
             raise SystemExit
         printImageType(imp)
+        info = imp.getInfoProperty()
+        try:
+            fi = imp.getOriginalFileInfo()
+            image_dir = os.path.dirname(fi.directory)
+        except:
+            image_dir = os.getcwd()
     elif dcm_type == "Single-Frame":
         IJ.log("DICOM Type selected: Single-Frame")
-        imp = open_multiple_dicom_files()
+        imp, info, image_dir = open_multiple_dicom_files()
         if imp is None:
             IJ.error("No image open.")
             raise SystemExit
         # printImageType(imp) # Already printed inside the function
 
-    return imp, dcm_type, is_multi_echo
+    return imp, dcm_type, is_multi_echo, image_dir, info
 
 # === Function to evaluate PASS/FAIL automatically ===
 
@@ -280,7 +305,7 @@ def check_limits(value, threshold):
 # --- Main script starts here ---
 
 IJ.log("========================================")
-IJ.log("TEST: Low Contrast Objective Detectability")
+IJ.log("TEST: Low Contrast Object Detectability")
 IJ.log("========================================")
 IJ.log("")
 IJ.log("[SETUP]")
@@ -289,7 +314,7 @@ IJ.log("")
 # Instructions for the user
 gd = GenericDialog("Instructions")
 gd.addMessage("Attention!", Font("SansSerif", Font.BOLD, 20))
-gd.addMessage("This test evaluates the low contrast objective detectability of the ACR MRI phantom.\n\n"
+gd.addMessage("This test evaluates the low contrast object detectability of the ACR MRI phantom.\n\n"
               "You will be prompted to select the T1-weighted image first (Enhanced DICOM, multi-slice (other single file DICOM) or selecting 4 single slices),\n"
                 "and then the T2-weighted image (Enhanced DICOM, multi-slice or selecting 4 single slices).\n\n", Font("SansSerif", Font.ITALIC, 18))
 # Best-effort: hide the Cancel button so only OK is visible.
@@ -316,23 +341,21 @@ gd.showDialog()
 
 # --- T1 weighted image ---
 # Identification of DICOM type
-imp, dcm_type, is_multi_echo = select_and_open_dicom("Click OK to select the T1 image")
+imp, dcm_type, is_multi_echo, image_dir, info = select_and_open_dicom("Click OK to select the T1 image")
 
 # Extract DICOM metadata (exam date and station name)
 exam_date = "N/A"
-info = imp.getInfoProperty()
-
 if info is not None:
-	try:
-		# Extract exam date (0008,0020)
-		date_start = info.find("0008,0020")
-		if date_start != -1:
-			date_value_start = info.find(":", date_start) + 1
-			date_end = info.find("\n", date_value_start)
-			exam_date = info[date_value_start:date_end].strip()
-	except:
-		pass
-	
+    try:
+        # Extract exam date (0008,0020)
+        date_start = info.find("0008,0020")
+        if date_start != -1:
+            date_value_start = info.find(":", date_start) + 1
+            date_end = info.find("\n", date_value_start)
+            exam_date = info[date_value_start:date_end].strip()
+    except:
+        pass
+
 IJ.log("Exam Date: " + exam_date)
 IJ.log("")
 
@@ -364,13 +387,15 @@ if level is not None:
     imp.updateAndDraw()
 
 # Get Magnetic Field Strength from DICOM header
-info = imp.getInfoProperty()
+if info is None:
+    info = imp.getInfoProperty()
 mag_field_strength = None
 if info is not None:
     for line in info.split("\n"):
         if line.startswith("0018,0087"):  # Magnetic Field Strength tag
             try:
                 mag_field_strength = line.split(":")[1].strip()
+                IJ.log("Magnetic Field Strength: " + mag_field_strength + " T")
             except:
                 mag_field_strength = None
                 IJ.log("Could not parse Magnetic Field Strength value.")
@@ -411,18 +436,19 @@ WaitForUserDialog("Slice 11 - Perform the analysis and click OK").show()
 t1_slice11 = get_number_or_nan("Enter the number of complete spokes in slice 11:", 10.0)
 
 # Capture image directory before closing
-try:
-    fi = imp.getOriginalFileInfo()
-    image_dir = os.path.dirname(fi.directory)
-except:
-    image_dir = os.getcwd()
+if image_dir is None:
+    try:
+        fi = imp.getOriginalFileInfo()
+        image_dir = os.path.dirname(fi.directory)
+    except:
+        image_dir = os.getcwd()
     
 imp.close()
 
 # --- T2 weighted image ---
 
 # Identification of DICOM type
-imp2, dcm_type, is_multi_echo = select_and_open_dicom("Click OK to select the T2 image")
+imp2, dcm_type, is_multi_echo, image_dir, info = select_and_open_dicom("Click OK to select the T2 image")
 
 IJ.run("In [+]","")
 IJ.run("In [+]","")
@@ -502,13 +528,13 @@ close_wl()
 
 if mag_field_strength is not None:
     IJ.log("Magnetic Field Strength: {}".format(mag_field_strength))
-    if "3" in mag_field_strength:
+    if mag_field_strength == "3":
         threshold_T1 = 37
         threshold_T2 = 37
-    elif "1.5" in mag_field_strength:
+    elif mag_field_strength < "3" and mag_field_strength >= "1.5":
         threshold_T1 = 30
         threshold_T2 = 25
-    else:
+    elif mag_field_strength < "1.5":
         threshold_T1 = 7
         threshold_T2 = 7
 else:
