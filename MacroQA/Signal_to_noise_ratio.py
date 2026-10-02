@@ -266,9 +266,9 @@ mean_ref = measure_roi_mean(impA)
 # The noise (standard deviation) is measured from the subtracted image (result)
 std_ref = measure_roi_std(result)
 # SNR formula based on ACR guidelines
-SNR = mean_ref / std_ref
+SNR = math.sqrt(2) * (mean_ref / std_ref)
 # Note: The ACR method often includes a scaling factor (e.g., * sqrt(2)) depending on the specific protocol.
-# This script uses the basic formula.
+
 
 # --- Display Final Results ---
 dlg=WaitForUserDialog("SNR test finished, collect the results.")
